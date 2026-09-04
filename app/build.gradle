@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.rongyu.chess'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.rongyu.chess"
+        minSdk 21
+        targetSdk 34
+        versionCode 2
+        versionName "2.0.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../release.keystore')
+            storePassword 'rongyu2026'
+            keyAlias 'chess'
+            keyPassword 'rongyu2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // debug 不需要签名配置，用默认 debug 签名
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+// 纯 WebView 壳，无外部依赖，只用系统 API
+dependencies {
+}
