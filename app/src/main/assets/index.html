@@ -1,11 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<script>
-!(function(j,a,g){j.__itrace_conf = {bid: 'f43basl8-6nqu7l3w',rel: '0.0.1', spa: true, uid: '', plugins:['jserror','interface','perf','resource','flow','blank']};var b = a.createElement("script");var d = a.getElementsByTagName("script")[0];b.type = "text/javascript";b.crossorigin = true;b.async = true;b.onload = function(){j.__itrace && j.__itrace.setReady()};d.parentNode.insertBefore(b,d);b.src = g})(window, document, "https://g.alicdn.com/woodpeckerx/itrace-next/itrace.iife.js")
-</script>
-
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>国际象棋 · 离线AI增强版</title>
     <style>
@@ -14,16 +10,16 @@
         .header { margin-bottom:12px; display:flex; align-items:center; gap:12px; }
         .header h1 { font-size:1.5rem; font-weight:600; }
         .game-container { width:100%; max-width:500px; display:flex; flex-direction:column; gap:14px; }
-        .status-bar { background:#ffffff; border-radius:20px; padding:12px 18px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:space-between; min-height:52px; transition:background 0.2s; }
+        .status-bar { background:#ffffff; border-radius:20px; padding:7px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:space-between; min-height:40px; transition:background 0.2s; }
         .status-bar.check-alert { background:#fff0f0; box-shadow:0 0 12px rgba(255,0,0,0.2); }
         .status-left { display:flex; align-items:center; gap:10px; }
         .turn-indicator { width:14px; height:14px; border-radius:50%; border:2px solid #ccc; flex-shrink:0; transition:background 0.2s; }
         .turn-indicator.white { background:#f0e9df; border-color:#b0a090; }
         .turn-indicator.black { background:#1f2937; border-color:#555; }
         .status-text { font-weight:500; }
-        .status-right { display:flex; align-items:center; gap:10px; }
-        .eval-score { font-size:0.85rem; color:#6b7280; background:#f3f4f6; padding:2px 10px; border-radius:12px; }
-        .thinking-indicator { display:none; align-items:center; gap:6px; color:#58cc02; font-weight:500; }
+        .status-right { display:flex; align-items:center; gap:10px; flex-wrap:nowrap; white-space:nowrap; }
+        .eval-score { font-size:0.85rem; color:#6b7280; background:#f3f4f6; padding:2px 10px; border-radius:12px; flex-shrink:0; }
+        .thinking-indicator { display:none; align-items:center; gap:6px; color:#58cc02; font-weight:500; flex-shrink:0; }
         .thinking-indicator.show { display:flex; }
         .thinking-dots span { display:inline-block; width:7px; height:7px; background:#58cc02; border-radius:50%; animation:dotBounce 1.2s infinite ease-in-out; }
         .thinking-dots span:nth-child(2) { animation-delay:-0.2s; }
@@ -45,9 +41,12 @@
         .square .coord-rank { top:2px; left:4px; }
         .dark .coord { color:rgba(255,255,255,0.3); }
         .animating-piece { position:absolute; display:flex; align-items:center; justify-content:center; font-size:clamp(28px,8vw,48px); pointer-events:none; z-index:60; will-change:transform; transition:transform 0.32s cubic-bezier(0.2,0,0.2,1); }
+        /* AI 走子专用缓动：玩家保持原手感(cubic-bezier 0.2,0,0.2,1 / 0.32s)，仅 AI 走子用更柔和的缓入缓出 */
+        .animating-piece.ai-anim { transition:transform 0.38s cubic-bezier(0.42, 0, 0.58, 1); }
         .captured-piece-anim { position:absolute; display:flex; align-items:center; justify-content:center; font-size:clamp(28px,8vw,48px); pointer-events:none; z-index:55; will-change:transform, opacity; transition:transform 0.32s, opacity 0.32s; }
+        .captured-piece-anim.ai-anim { transition:transform 0.38s cubic-bezier(0.42, 0, 0.58, 1), opacity 0.32s; }
         .captured-piece-anim.vanish { transform:scale(0.2); opacity:0; }
-        .captured-pieces { display:flex; gap:4px; min-height:32px; flex-wrap:wrap; justify-content:center; padding:4px 0; }
+        .captured-pieces { display:flex; gap:4px; height:32px; flex-wrap:nowrap; overflow:hidden; justify-content:center; align-items:center; padding:0; }
         .captured-piece { font-size:1.4rem; opacity:0.7; animation:pieceAppear 0.18s ease; }
         @keyframes pieceAppear { from { opacity:0; transform:translateY(-6px); } to { opacity:0.7; transform:translateY(0); } }
         .controls { display:flex; flex-direction:column; gap:10px; }
@@ -61,12 +60,15 @@
         .btn.danger:hover { background:#e84848; }
         .difficulty-selector { display:flex; gap:4px; flex-wrap:wrap; justify-content:center; align-items:center; }
         .difficulty-selector label { font-size:0.85rem; color:#4b5563; margin-right:4px; }
-        .difficulty-btn { border:1px solid #d1d5db; background:#fff; padding:6px 10px; font-size:0.8rem; border-radius:12px; cursor:pointer; transition:all 0.15s; }
+        .difficulty-btn { border:1px solid #d1d5db; background:#fff; padding:4px 9px; min-height:30px; font-size:0.8rem; border-radius:10px; cursor:pointer; transition:all 0.15s; }
         .difficulty-btn.active { background:#58cc02; color:white; border-color:#58cc02; }
         .difficulty-btn:hover:not(.active) { background:#f3f4f6; }
-        .move-history { background:#fff; border-radius:16px; padding:10px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); max-height:80px; overflow-y:auto; }
-        .move-history-title { font-size:0.75rem; color:#6b7280; margin-bottom:4px; }
-        .move-list { display:flex; flex-wrap:wrap; gap:4px 8px; }
+        .move-history { background:#fff; border-radius:16px; padding:10px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden; }
+        .move-history-title { font-size:0.75rem; color:#6b7280; margin-bottom:4px; cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; gap:4px; }
+        .move-history-arrow { display:inline-block; transition:transform 0.2s; }
+        .move-history.collapsed .move-history-arrow { transform:rotate(90deg); }
+        .move-list { display:flex; flex-wrap:wrap; gap:4px 8px; max-height:120px; overflow-y:auto; transition:max-height 0.2s, opacity 0.2s, margin 0.2s; }
+        .move-history.collapsed .move-list { max-height:0; opacity:0; margin-top:0; overflow:hidden; }
         .move-entry { background:#f3f4f6; padding:2px 8px; border-radius:8px; font-family:monospace; font-size:0.8rem; animation:moveFade 0.18s ease; }
         @keyframes moveFade { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
         .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; z-index:100; }
@@ -80,21 +82,26 @@
         .promotion-piece:hover { background:#e5e7eb; transform:scale(1.1); }
         .modal-close { margin-top:12px; width:100%; }
         @media (max-width:400px) { .header h1 { font-size:1.2rem; } .btn { padding:8px 12px; font-size:0.8rem; } .promotion-piece { font-size:2.2rem; } }
-        .sound-toggle { position: fixed; bottom: 15px; right: 15px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; z-index: 50; font-size: 1.2rem; }
         .piece-rotated { transform: rotate(180deg); display: inline-block; }
-        /* ===== 开局选择黑白 ===== */
-        .color-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; }
-        .color-modal { background:#fff; border-radius:24px; padding:28px 24px; width:90%; max-width:340px; box-shadow:0 8px 24px rgba(0,0,0,0.15); text-align:center; }
-        .color-modal h2 { font-size:1.3rem; margin-bottom:6px; }
-        .color-modal p { color:#6b7280; margin-bottom:18px; font-size:0.9rem; }
-        .color-choice { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
-        .color-card { flex:1 1 90px; max-width:150px; border:2px solid #e5e7eb; border-radius:16px; padding:14px 8px; cursor:pointer; transition:all 0.15s; background:#fff; }
-        .color-card:hover { border-color:#58cc02; transform:translateY(-2px); }
-        .color-card .icon { font-size:2.8rem; display:block; margin-bottom:8px; }
-        .color-card .label { font-weight:600; font-size:1rem; }
-        .color-card .sub { color:#6b7280; font-size:0.8rem; margin-top:4px; }
-        .color-card.white-card .icon { color:#1f2937; }
-        .color-card.black-card .icon { color:#1f2937; }
+        /* ===== 圆角滑块：选择执白 / 随机 / 执黑 ===== */
+        .color-slider-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; }
+        .color-slider { position:relative; display:flex; width:100%; max-width:300px; background:#e5e7eb; padding:2px; border-radius:999px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.08); }
+        .color-slider-thumb { position:absolute; top:2px; bottom:2px; left:2px; width:calc((100% - 6px) / 3); background:#58cc02; border-radius:999px; box-shadow:0 2px 8px rgba(88,204,2,0.45); transition:transform 0.28s cubic-bezier(0.25,0.1,0.25,1); }
+        .color-slider-opt { flex:1; position:relative; z-index:2; display:flex; align-items:center; justify-content:center; gap:6px; min-height:32px; padding:3px 4px; border:none; background:transparent; border-radius:999px; font-size:0.85rem; font-weight:600; color:#6b7280; cursor:pointer; transition:color 0.2s; font-family:inherit; touch-action:manipulation; }
+        .color-slider-opt.active { color:#fff; }
+        .color-slider-opt:not(.active):hover { color:#1f2937; }
+        .color-slider-icon { font-size:1.15rem; line-height:1; }
+        .color-slider-hint { height:16px; font-size:0.75rem; color:#d97706; opacity:0; transition:opacity 0.2s; }
+        .color-slider-hint.show { opacity:1; }
+        /* ===== 弹窗多按钮 / 禁用态 / 提示气泡 ===== */
+        .modal-btn-row { display:none; gap:10px; margin-top:14px; }
+        .modal-btn-row.show { display:flex; }
+        .modal-btn-row .btn { flex:1; padding:11px 10px; }
+        .btn:disabled { opacity:0.45; cursor:not-allowed; }
+        .btn:disabled:hover { background:#e5e7eb; transform:none; }
+        .btn.danger:disabled:hover { background:#ff5858; }
+        .toast { position:fixed; left:50%; top:14px; transform:translateX(-50%) translateY(-8px); background:rgba(31,41,55,0.92); color:#fff; padding:10px 18px; border-radius:14px; font-size:0.85rem; font-weight:500; opacity:0; pointer-events:none; transition:opacity 0.25s, transform 0.25s; z-index:300; max-width:88vw; text-align:center; }
+        .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
@@ -116,6 +123,16 @@
         </div>
     </div>
 
+    <div class="color-slider-wrap" id="colorSliderWrap">
+        <div class="color-slider" id="colorSlider" role="radiogroup" aria-label="选择执子颜色">
+            <div class="color-slider-thumb" id="colorSliderThumb"></div>
+            <button type="button" class="color-slider-opt active" data-color="w"><span class="color-slider-icon">♔</span><span>执白</span></button>
+            <button type="button" class="color-slider-opt" data-color="r"><span class="color-slider-icon">🎲</span><span>随机</span></button>
+            <button type="button" class="color-slider-opt" data-color="b"><span class="color-slider-icon">♚</span><span>执黑</span></button>
+        </div>
+        <div class="color-slider-hint" id="colorSliderHint"></div>
+    </div>
+
     <div class="captured-pieces" id="capturedByBlack"></div>
 
     <div class="board-wrapper" id="boardWrapper">
@@ -129,20 +146,19 @@
             <label>难度</label>
             <button class="difficulty-btn active" data-level="1">入门</button>
             <button class="difficulty-btn" data-level="2">简单</button>
-            <button class="difficulty-btn" data-level="3">中等</button>
-            <button class="difficulty-btn" data-level="4">困难</button>
-            <button class="difficulty-btn" data-level="5">大师</button>
+            <button class="difficulty-btn" data-level="3">困难</button>
+            <button class="difficulty-btn" data-level="4">大师</button>
         </div>
         <div class="control-row">
             <button class="btn primary" id="newGameBtn">新对局</button>
             <button class="btn" id="undoBtn">悔棋</button>
-            <button class="btn danger" id="stopAIBtn">停止AI</button>
+            <button class="btn" id="stopAIBtn">双人对战</button>
             <button class="btn danger" id="resignBtn">认输</button>
         </div>
     </div>
 
-    <div class="move-history">
-        <div class="move-history-title">走棋记录</div>
+    <div class="move-history collapsed" id="moveHistory">
+        <div class="move-history-title" id="moveHistoryTitle">走棋记录<span class="move-history-arrow">▸</span></div>
         <div class="move-list" id="moveList"></div>
     </div>
 </div>
@@ -153,34 +169,18 @@
         <p id="modalMessage"></p>
         <div class="promotion-pieces" id="promotionPieces"></div>
         <button class="btn primary modal-close" id="modalCloseBtn" style="display:none;">确定</button>
-    </div>
-</div>
-
-<div class="sound-toggle" id="soundToggle" title="切换音效">🔊</div>
-
-<div class="color-modal-overlay" id="colorModal">
-    <div class="color-modal">
-        <h2>请选择您执棋的颜色</h2>
-        <p>白棋先行，黑棋后行</p>
-        <div class="color-choice">
-            <div class="color-card white-card" data-color="w">
-                <span class="icon">♔</span>
-                <span class="label">执白</span>
-                <span class="sub">白棋在下方 · 您先走</span>
-            </div>
-            <div class="color-card black-card" data-color="b">
-                <span class="icon">♚</span>
-                <span class="label">执黑</span>
-                <span class="sub">黑棋在下方 · 您后走</span>
-            </div>
-            <div class="color-card random-card" data-color="r">
-                <span class="icon">🎲</span>
-                <span class="label">随机</span>
-                <span class="sub">系统随机分配黑白</span>
-            </div>
+        <div class="modal-btn-row" id="modalConfirmRow">
+            <button class="btn" id="modalCancelBtn">取消</button>
+            <button class="btn danger" id="modalConfirmBtn">确认</button>
+        </div>
+        <div class="modal-btn-row" id="modalEndRow">
+            <button class="btn" id="modalEndCloseBtn">看看棋盘</button>
+            <button class="btn primary" id="modalRematchBtn">再来一局</button>
         </div>
     </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 // ===================== 国际象棋引擎（优化版） =====================
@@ -463,8 +463,8 @@ const ChessEngine = (() => {
     }
 
     function minimax(board, depth, alpha, beta, maximizing, color, castlingRights, enPassantTarget, transTable, startTime, timeLimit, abortSignal) {
-        if (abortSignal && abortSignal.aborted) return evaluate(board);
-        if (Date.now() - startTime > timeLimit) return evaluate(board);
+        if (abortSignal && abortSignal.aborted) return Number.POSITIVE_INFINITY;  // 哨兵：搜索未完成，顶层忽略此着法
+        if (Date.now() - startTime > timeLimit) return Number.POSITIVE_INFINITY;  // 哨兵：搜索未完成
 
         const hashKey = boardHash(board, castlingRights, enPassantTarget, color) + '|' + depth;
         if (transTable[hashKey] !== undefined) return transTable[hashKey];
@@ -516,9 +516,9 @@ const ChessEngine = (() => {
     }
 
     function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal) {
-        const depthMap = {1:1, 2:2, 3:3, 4:3, 5:4};
+        const depthMap = {1:1, 2:2, 3:3, 4:4};
         const depth = depthMap[level] || 3;
-        const randomFactor = {1:0.55, 2:0.30, 3:0.12, 4:0.05, 5:0}[level] || 0;
+        const randomFactor = {1:0.55, 2:0.30, 3:0.12, 4:0.05}[level] || 0;
         const moves = generateMoves(board, color, castlingRights, enPassantTarget);
         const legalMoves = moves.filter(m => !isInCheck(makeMove(board,m), color));
         if (legalMoves.length === 0) return null;
@@ -532,6 +532,7 @@ const ChessEngine = (() => {
             const nc = getCastlingRights(nb, castlingRights);
             const nep = getEnPassantTarget(nb, mv);
             const val = minimax(nb, depth-1, -Infinity, Infinity, color===BLACK, -color, nc, nep, transTable, startTime, timeLimit, abortSignal);
+            if (val === Number.POSITIVE_INFINITY) { break; }  // 搜索被截断，放弃该着法及其后续，不作部分评分
             const noise = (Math.random()*2 - 1) * randomFactor * 350;
             scored.push({move:mv, score: val + noise});
             if (Date.now() - startTime > timeLimit) break;
@@ -552,9 +553,8 @@ const ChessEngine = (() => {
 // ===================== 音效系统 =====================
 const SoundManager = (() => {
     let audioCtx = null;
-    let enabled = true;
-    const toggleBtn = document.getElementById('soundToggle');
-    
+    const enabled = true;
+
     function initAudio() {
         if (!audioCtx) {
             try {
@@ -590,12 +590,6 @@ const SoundManager = (() => {
     function playCheck() { playTone(800, 0.15, 'square', 0.12); }
     function playGameEnd() { playTone(600, 0.15, 'sine', 0.2); setTimeout(() => playTone(500, 0.15, 'sine', 0.2), 150); setTimeout(() => playTone(400, 0.2, 'sine', 0.2), 300); }
     
-    toggleBtn.addEventListener('click', () => {
-        enabled = !enabled;
-        toggleBtn.textContent = enabled ? '🔊' : '🔇';
-        if (enabled) playMove();
-    });
-    
     return { playMove, playCapture, playCheck, playGameEnd };
 })();
 
@@ -622,12 +616,23 @@ class ChessGame {
         this.isThinking = false;
         this.isAnimating = false;
         this.difficulty = 1;
-        this.playerColor = null;   // 等待开局选色
+        this.colorPreference = 'w'; // 滑块偏好：'w' | 'r'（随机）| 'b'
+        // 优先读取已保存的设置（难度/执色/音效）
+        try {
+            const saved = JSON.parse(localStorage.getItem('chessPrefs') || '{}');
+            const dif = parseInt(saved.difficulty) || 1;
+            this.difficulty = (dif >= 1 && dif <= 4) ? dif : 1;
+            const col = ['w', 'r', 'b'].includes(saved.colorPreference) ? saved.colorPreference : 'w';
+            this.colorPreference = col;
+            // 音效状态在音频模块内单独持久化
+        } catch (e) { /* localStorage 不可用时静默回退到默认值 */ }
+        this.playerColor = null;    // 实际执子色，每局开始时由 resolveColor() 决定
         this.gameMode = 'pvc';     // 默认人机模式
         this.animationToken = 0;
+        this.humanMoved = false;
         this.initUI();
         this.render();
-        this.showColorSelection();
+        this.applyColorPreference(); // 直接按滑块当前值开局，不再弹窗选色
     }
 
     isFlipped() {
@@ -635,21 +640,61 @@ class ChessGame {
         return this.playerColor === 'b';
     }
 
-    chooseColor(color) {
-        // 'r' = 随机：系统随机分配执黑还是执白
-        if (color === 'r') {
-            color = Math.random() < 0.5 ? 'w' : 'b';
-        }
-        this.playerColor = color;
-        this.colorModalEl.style.display = 'none';
-        // 翻转状态可能改变，强制按新朝向重建棋盘 DOM
-        delete this._squareEls;
-        this.buildBoardDOM();
+    // 「随机」每次调用都重新摇一次 → 每局新对局都会重新随机
+    resolveColor() {
+        return this.colorPreference === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : this.colorPreference;
+    }
+
+    // 持久化设置（难度/执色）
+    savePrefs() {
+        try {
+            localStorage.setItem('chessPrefs', JSON.stringify({
+                difficulty: this.difficulty,
+                colorPreference: this.colorPreference
+            }));
+        } catch (e) { /* 忽略存储失败 */ }
+    }
+
+    applyColorPreference() {
         this.newGame();
     }
 
-    showColorSelection() {
-        this.colorModalEl.style.display = 'flex';
+    // 滑块切到某个偏好
+    onColorPreferenceChange(pref) {
+        if (this.colorPreference === pref) return;
+        this.colorPreference = pref;
+        this.savePrefs();
+
+        // 玩家自己还没走过子时重开是"零损失"的，立即生效；已经交战则不打断当前对局，下一局生效
+        const canApplyNow = !this.humanMoved && !this.gameOver;
+
+        if (!canApplyNow) {
+            if (!this.gameOver) this.showColorHint('新颜色将在下一局生效');
+            this.updateColorSliderUI();
+            return;
+        }
+        this.updateColorSliderUI();
+        this.applyColorPreference();
+    }
+
+    showColorHint(text) {
+        const hintEl = this.colorSliderHintEl;
+        if (!hintEl) return;
+        hintEl.textContent = text;
+        hintEl.classList.add('show');
+        if (this._colorHintTimer) clearTimeout(this._colorHintTimer);
+        this._colorHintTimer = setTimeout(() => hintEl.classList.remove('show'), 2500);
+    }
+
+    // 同步滑块 UI（高亮当前项 + 滑块位移）
+    updateColorSliderUI() {
+        if (!this.colorSliderEl) return;
+        const opts = Array.from(this.colorSliderEl.querySelectorAll('.color-slider-opt'));
+        const idx = Math.max(0, opts.findIndex(o => o.dataset.color === this.colorPreference));
+        opts.forEach((o, i) => o.classList.toggle('active', i === idx));
+        if (this.colorSliderThumbEl) {
+            this.colorSliderThumbEl.style.transform = `translateX(${idx * 100}%)`;
+        }
     }
 
     initUI() {
@@ -662,6 +707,12 @@ class ChessGame {
         this.capturedByBlackEl = document.getElementById('capturedByBlack');
         this.capturedByWhiteEl = document.getElementById('capturedByWhite');
         this.moveListEl = document.getElementById('moveList');
+        this.moveHistoryEl = document.getElementById('moveHistory');
+        this.moveHistoryTitleEl = document.getElementById('moveHistoryTitle');
+        // 走棋记录折叠：默认收起，点标题展开/收起
+        this.moveHistoryTitleEl.addEventListener('click', () => {
+            this.moveHistoryEl.classList.toggle('collapsed');
+        });
         this.modalEl = document.getElementById('modal');
         this.modalTitleEl = document.getElementById('modalTitle');
         this.modalMessageEl = document.getElementById('modalMessage');
@@ -669,18 +720,44 @@ class ChessGame {
         this.modalCloseEl = document.getElementById('modalCloseBtn');
         this.stopAIBtn = document.getElementById('stopAIBtn');
         this.statusBarEl = document.getElementById('status');
-        this.colorModalEl = document.getElementById('colorModal');
-        document.querySelectorAll('.color-card').forEach(card => {
-            card.addEventListener('click', () => this.chooseColor(card.dataset.color));
+        this.colorSliderWrapEl = document.getElementById('colorSliderWrap');
+        this.colorSliderEl = document.getElementById('colorSlider');
+        this.colorSliderThumbEl = document.getElementById('colorSliderThumb');
+        this.colorSliderHintEl = document.getElementById('colorSliderHint');
+        this.modalConfirmRowEl = document.getElementById('modalConfirmRow');
+        this.modalEndRowEl = document.getElementById('modalEndRow');
+        this.resignBtn = document.getElementById('resignBtn');
+        this.undoBtn = document.getElementById('undoBtn');
+        this.toastEl = document.getElementById('toast');
+        if (this.colorSliderEl) {
+            this.colorSliderEl.querySelectorAll('.color-slider-opt').forEach(btn => {
+                btn.addEventListener('click', () => this.onColorPreferenceChange(btn.dataset.color));
+            });
+        }
+        document.getElementById('modalCancelBtn').addEventListener('click', () => { this.pendingConfirm = null; this.hideModal(); });
+        document.getElementById('modalConfirmBtn').addEventListener('click', () => {
+            const fn = this.pendingConfirm;
+            this.pendingConfirm = null;
+            this.hideModal();
+            if (fn) fn();
         });
+        document.getElementById('modalEndCloseBtn').addEventListener('click', () => this.hideModal());
+        document.getElementById('modalRematchBtn').addEventListener('click', () => { this.hideModal(); this.newGame(); });
 
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.difficulty = parseInt(btn.dataset.level);
+                this.savePrefs();
             });
         });
+        // 恢复已保存难度对应的按钮高亮
+        const activeDiffBtn = document.querySelector(`.difficulty-btn[data-level="${this.difficulty}"]`);
+        if (activeDiffBtn) {
+            document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+            activeDiffBtn.classList.add('active');
+        }
         document.getElementById('newGameBtn').addEventListener('click', () => this.newGame());
         document.getElementById('undoBtn').addEventListener('click', () => this.undoMove());
         document.getElementById('resignBtn').addEventListener('click', () => this.resign());
@@ -701,28 +778,51 @@ class ChessGame {
         if (this.gameMode === 'pvc') {
             this.gameMode = 'pvp';
             this.stopAI();
-            this.stopAIBtn.textContent = '启用AI';
+            this.stopAIBtn.textContent = '人机对战';
             this.stopAIBtn.classList.remove('danger');
             this.stopAIBtn.classList.add('primary');
+            this.resignBtn.textContent = '认输';
+            this.colorSliderWrapEl.style.display = 'none';   // 双人模式选色无意义，隐藏
+            this.showToast('已切换到双人对战');
             this.render();
         } else {
             this.gameMode = 'pvc';
-            this.stopAIBtn.textContent = '停止AI';
-            this.stopAIBtn.classList.add('danger');
+            this.stopAIBtn.textContent = '双人对战';
             this.stopAIBtn.classList.remove('primary');
+            this.resignBtn.textContent = '认输';
+            this.colorSliderWrapEl.style.display = '';       // 恢复滑块
             this.newGame();
+            this.showToast('已切换回人机对战');
         }
+    }
+
+    // 根据对局状态禁用/启用操作按钮（游戏结束后认输不可点）
+    updateControlsState() {
+        if (this.resignBtn) this.resignBtn.disabled = this.gameOver;
+        if (this.undoBtn) this.undoBtn.disabled = this.gameOver;
     }
 
     resign() {
         if (this.gameOver || this.playerColor === null) return;
+        // 认输前二次确认，防手滑
+        this.showModal('认输', this.gameMode === 'pvp' ? '确定要认输吗？' : '确定要认输吗？（本局判负）', 'confirm', () => this.doResign());
+    }
+
+    doResign() {
+        if (this.gameOver || this.playerColor === null) return;
         this.stopAI();
         this.animationToken++;
         this.gameOver = true;
-        // 认输方是玩家，赢家是 AI（对手）
-        const winner = 'AI（' + (this.playerColor === 'w' ? '黑方' : '白方') + '）';
-        this.showModal('认输', `${winner}获胜！`);
+        // 赢家：双人模式是对方，人机模式是 AI
+        let winner;
+        if (this.gameMode === 'pvp') {
+            winner = this.currentPlayer === ChessEngine.WHITE ? '黑方' : '白方';
+        } else {
+            winner = 'AI（' + (this.playerColor === 'w' ? '黑方' : '白方') + '）';
+        }
+        this.showModal('认输', `${winner}获胜！`, 'end');
         SoundManager.playGameEnd();
+        this.updateControlsState();
         this.render();
     }
 
@@ -919,6 +1019,7 @@ class ChessGame {
         if (this.isAnimating) return;
         const token = ++this.animationToken;
         this.isAnimating = true;
+        this.humanMoved = true;   // 玩家落子（人机模式下用于滑块切换判定；双人模式双方都算）
         this.selectedSquare = null;
         this.validMoves = [];
         this.saveState();
@@ -1027,7 +1128,7 @@ class ChessGame {
         if (!whiteKingExists || !blackKingExists) {
             this.gameOver = true;
             const winner = !whiteKingExists ? '黑方' : '白方';
-            this.showModal('王被吃', `${winner}获胜！`);
+            this.showModal('王被吃', `${winner}获胜！`, 'end');
             SoundManager.playGameEnd();
         }
     }
@@ -1036,10 +1137,9 @@ class ChessGame {
         if (this.gameMode !== 'pvc') return;
         this.isThinking = true;
         this.render();
-        const delayMap = {1:600, 2:800, 3:1200, 4:1800, 5:2500};
-        const delay = delayMap[this.difficulty] || 1000;
         this.abortController = new AbortController();
         const aiColor = this.getAIColorValue();
+        // 无固定人为延迟：直接计算并走子（计算耗时本身即"思考时间"）
         this.aiTimer = setTimeout(() => {
             this.aiTimer = null;
             if (this.abortController.aborted) {
@@ -1058,7 +1158,7 @@ class ChessGame {
                 this.render();
                 this.checkGameEnd();
             }
-        }, delay);
+        }, 0);
     }
 
     async executeAIMove(move) {
@@ -1072,19 +1172,27 @@ class ChessGame {
 
         const fromPos = this.getSquarePixelPos(move.from[0], move.from[1]);
         const toPos = this.getSquarePixelPos(move.to[0], move.to[1]);
+        // 距离自适应：按位移格数决定动画时长，单格与玩家手动走子完全一致(0.32s)，走得越远越从容
+        // （用格数而非像素，避免不同屏幕尺寸下速度漂移）
+        const squares = Math.max(Math.abs(move.to[0]-move.from[0]), Math.abs(move.to[1]-move.from[1])); // 位移格数
+        const animDuration = Math.max(0.32, Math.min(0.9, squares * 0.32)); // 秒：单格=0.32s(与手动相同)，每多一格累加
+
 
         const animPiece = document.createElement('div');
-        animPiece.className = 'animating-piece';
+        animPiece.className = 'animating-piece';   // 不用 CSS transition, 改用 rAF 逐帧插值(Android WebView 对 transition 合成不可靠)
         const glyph = document.createElement('span');
         glyph.textContent = PIECE_SYMBOLS[move.promotion || piece];
         if (this.pieceFacingUp(move.promotion || piece)) {
             glyph.classList.add('piece-rotated');
         }
         animPiece.appendChild(glyph);
-        animPiece.style.left = fromPos.x + 'px';
-        animPiece.style.top = fromPos.y + 'px';
-        animPiece.style.width = fromPos.size + 'px';
-        animPiece.style.height = fromPos.size + 'px';
+        // 用 vision-free 的绝对定位: left/top 由 rAF 逐帧推进, 无需 transform/transition
+        animPiece.style.position = 'absolute';
+        animPiece.style.willChange = 'left, top';
+        const sizePx = fromPos.size + 'px';
+        animPiece.style.width = sizePx;
+        animPiece.style.height = sizePx;
+        animPiece.style.zIndex = '60';
         this.boardWrapper.appendChild(animPiece);
 
         // 走子时隐藏起点棋子字形，让棋子真正"离开"起点，避免动画期间一格两影
@@ -1117,17 +1225,40 @@ class ChessGame {
             this.boardWrapper.appendChild(capturedAnimEl);
         }
 
+        // ---- rAF 逐帧滑动动画 (不依赖 CSS transition, 各渲染环境一致) ----
+        const dx = toPos.x - fromPos.x, dy = toPos.y - fromPos.y;
+        animPiece.style.left = fromPos.x + 'px';
+        animPiece.style.top = fromPos.y + 'px';
+        const startTime = performance.now();
         await new Promise(resolve => {
-            // rAF 在后台标签页会被节流导致永不触发，用 setTimeout 兜底，保证动画一定能走完
-            const rafId = requestAnimationFrame(resolve);
-            setTimeout(() => { cancelAnimationFrame(rafId); resolve(); }, 50);
+            // 后台标签页 rAF 会被节流暂停导致动画永不结束，用 setTimeout 兜底强制走完，防止 isAnimating 卡死
+            let settled = false;
+            const finish = () => { if (settled) return; settled = true; resolve(); };
+            let lastNow = performance.now();
+            let stuckCount = 0;
+            const step = (now) => {
+                if (token !== this.animationToken) { finish(); return; }
+                // 兜底：若 rAF 长时间不触发（后台），强制结束
+                if (now - lastNow > 300) stuckCount++;
+                lastNow = now;
+                if (stuckCount >= 20) { finish(); return; }
+                const t = Math.min(1, (now - startTime) / (animDuration * 1000));
+                // 平滑缓入缓出 (easeInOutCubic)
+                const e = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+                animPiece.style.left = (fromPos.x + dx * e) + 'px';
+                animPiece.style.top = (fromPos.y + dy * e) + 'px';
+                if (t < 1 && !settled) {
+                    requestAnimationFrame(step);
+                } else {
+                    finish();
+                }
+            };
+            requestAnimationFrame(step);
+            // 绝对兜底：超过 (动画时长+1s) 仍未结束就去掉 rAF 依赖，直接收尾
+            const guardTimer = setTimeout(() => finish(), animDuration * 1000 + 1000);
+            // 动画正常结束后清理兜底定时器，避免悬挂
+            Promise.resolve().then(() => { if (settled) clearTimeout(guardTimer); });
         });
-        if (token !== this.animationToken) { this.isAnimating = false; this.isThinking = false; return; }
-        animPiece.style.transform = `translate(${toPos.x - fromPos.x}px, ${toPos.y - fromPos.y}px)`;
-        if (capturedAnimEl) capturedAnimEl.classList.add('vanish');
-        await new Promise(resolve => setTimeout(resolve, 320));
-        if (token !== this.animationToken) { this.isAnimating = false; this.isThinking = false; return; }
-
         animPiece.remove();
         if (capturedAnimEl) capturedAnimEl.remove();
 
@@ -1182,9 +1313,9 @@ class ChessGame {
                 const winnerColorValue = -this.currentPlayer;
                 const winnerName = winnerColorValue === ChessEngine.WHITE ? '白方' : '黑方';
                 const winner = (this.gameMode === 'pvc' && winnerColorValue === this.getAIColorValue()) ? 'AI' : winnerName;
-                this.showModal('将杀！', `${winner}获胜！`);
+                this.showModal('将杀！', `${winner}获胜！`, 'end');
             } else {
-                this.showModal('逼和', '和棋！');
+                this.showModal('逼和', '和棋！', 'end');
             }
             return true;
         }
@@ -1192,17 +1323,17 @@ class ChessGame {
         const count = this.positionHistory.filter(k => k === key).length;
         if (count >= 3) {
             this.gameOver = true;
-            this.showModal('三次重复', '和棋！');
+            this.showModal('三次重复', '和棋！', 'end');
             return true;
         }
         if (this.halfMoveClock >= 100) {
             this.gameOver = true;
-            this.showModal('五十步规则', '和棋！');
+            this.showModal('五十步规则', '和棋！', 'end');
             return true;
         }
         if (this.isInsufficientMaterial()) {
             this.gameOver = true;
-            this.showModal('子力不足', '和棋！');
+            this.showModal('子力不足', '和棋！', 'end');
             return true;
         }
         return false;
@@ -1248,18 +1379,38 @@ class ChessGame {
         this.modalTitleEl.textContent = '兵升变';
         this.modalMessageEl.textContent = '请选择升变棋子';
         this.modalCloseEl.style.display = 'none';
+        // 升变不是结束，也不需确认：确保不残留上次弹窗的按钮行
+        this.modalConfirmRowEl.classList.remove('show');
+        this.modalEndRowEl.classList.remove('show');
+        this.pendingConfirm = null;
         this.modalEl.classList.add('show');
     }
 
-    showModal(title, message) {
+    // mode: 'plain'(仅确定) | 'confirm'(取消/确认) | 'end'(看看棋盘/再来一局)
+    showModal(title, message, mode = 'plain', confirmFn = null) {
         this.modalTitleEl.textContent = title;
         this.modalMessageEl.textContent = message;
         this.promotionPiecesEl.innerHTML = '';
-        this.modalCloseEl.style.display = 'inline-block';
+        this.pendingConfirm = confirmFn;
+        this.modalCloseEl.style.display = mode === 'plain' ? 'inline-block' : 'none';
+        this.modalConfirmRowEl.classList.toggle('show', mode === 'confirm');
+        this.modalEndRowEl.classList.toggle('show', mode === 'end');
         this.modalEl.classList.add('show');
     }
 
-    hideModal() { this.modalEl.classList.remove('show'); }
+    hideModal() {
+        this.modalEl.classList.remove('show');
+        this.pendingConfirm = null;
+    }
+
+    // 轻提示气泡
+    showToast(text) {
+        if (!this.toastEl) return;
+        this.toastEl.textContent = text;
+        this.toastEl.classList.add('show');
+        if (this._toastTimer) clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => this.toastEl.classList.remove('show'), 2200);
+    }
 
     updateStatus(inCheck = false) {
         if (this.gameOver) {
@@ -1296,15 +1447,22 @@ class ChessGame {
         this.evalScoreEl.textContent = `${colorName}优势：${myStr}`;
         if (this.isThinking) {
             this.thinkingIndicator.classList.add('show');
+            // AI 思考时隐藏优势分，避免状态栏右侧同时出现两个元素在窄屏换行、把棋盘顶下去
+            this.evalScoreEl.style.display = 'none';
         } else {
             this.thinkingIndicator.classList.remove('show');
+            this.evalScoreEl.style.display = '';
         }
     }
 
     updateCaptured() {
         const fmt = arr => arr.map(p => `<span class="captured-piece">${PIECE_SYMBOLS[p]}</span>`).join('');
-        const topHtml = fmt(this.capturedByBlack);
-        const bottomHtml = fmt(this.capturedByWhite);
+        // 战果归属要跟随棋盘朝向：玩家自己的战果始终显示在玩家那一侧（下方）。
+        // 执白时玩家在下方 → 下方=capturedByWhite；执黑翻转后 → 下方=capturedByBlack。
+        const topArr = this.isFlipped() ? this.capturedByWhite : this.capturedByBlack;
+        const bottomArr = this.isFlipped() ? this.capturedByBlack : this.capturedByWhite;
+        const topHtml = fmt(topArr);
+        const bottomHtml = fmt(bottomArr);
         if (this._capTopHtml !== topHtml) { this._capTopHtml = topHtml; this.capturedByBlackEl.innerHTML = topHtml; }
         if (this._capBottomHtml !== bottomHtml) { this._capBottomHtml = bottomHtml; this.capturedByWhiteEl.innerHTML = bottomHtml; }
     }
@@ -1346,6 +1504,15 @@ class ChessGame {
     newGame() {
         this.animationToken++;
         this.stopAI();
+        // 每局新对局都重新决定执子色：滑块为「随机」时此处重摇一次
+        const prevPlayerColor = this.playerColor;
+        this.playerColor = this.resolveColor();
+        // 执子色变了（白↔黑）→ 棋盘朝向要翻转，必须重建格子 DOM；
+        // 否则 render() 会沿用旧朝向的 _squareEls，看起来"翻白翻黑一个样"
+        if (this.playerColor !== prevPlayerColor) {
+            delete this._squareEls;
+        }
+        this.updateColorSliderUI();
         this.board = ChessEngine.createInitialBoard();
         this.currentPlayer = ChessEngine.WHITE;
         this.selectedSquare = null;
@@ -1363,6 +1530,8 @@ class ChessGame {
         this.positionHistory = [];
         this.halfMoveClock = 0;
         this._checkSoundPlayed = false;
+        this.humanMoved = false;   // 玩家本局是否已落子（决定滑块切换能否立即生效）
+        this.updateControlsState();
         this.render();
         this.hideModal();
         // 执黑时白方AI先手，开局即轮到AI则自动走棋；执白时轮到玩家不触发
@@ -1372,6 +1541,11 @@ class ChessGame {
     }
 
     undoMove() {
+        if (this.gameOver) {
+            // 对局已结束：不允许静默复活，明确提示
+            this.showToast('对局已结束，请点“新对局”重开');
+            return;
+        }
         if (this.historyStack.length === 0 || this.isAnimating) return;
         if (this.isThinking) {
             this.stopAI();
