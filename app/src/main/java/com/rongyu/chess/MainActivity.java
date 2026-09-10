@@ -65,10 +65,21 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 返回键：如果 WebView 能后退就后退（游戏内没链接，这里直接退出）
+    // 返回键：先问网页（关设置面板/弹窗），网页回 'exit' 才真的退出。
+    // 旧实现在这里直接 super → 设置面板或结束弹窗开着时按返回也会把 App 直接关掉。
     @Override
     public void onBackPressed() {
-        super.onBackPressed();
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
+        webView.evaluateJavascript(
+                "(window.__androidBack ? window.__androidBack() : 'exit')",
+                value -> {
+                    if (value == null || value.contains("exit")) {
+                        finish();
+                    }
+                });
     }
 
     @Override

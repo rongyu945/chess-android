@@ -30,6 +30,10 @@
         .square { display:flex; align-items:center; justify-content:center; font-size:clamp(28px,8vw,48px); cursor:pointer; user-select:none; position:relative; transition:background-color 0.15s; }
         .square.light { background:#f0e9df; }
         .square.dark { background:#d4c2a8; }
+        /* 棋子/坐标不继承页面文字色：深色模式下棋子保持原样，不会由黑变白 */
+        .square .piece-glyph,
+        .animating-piece,
+        .captured-piece-anim { color:#1f2937; }
         .square.selected { background:#b6f098 !important; box-shadow:inset 0 0 20px rgba(88,204,2,0.4); }
         .square.valid-move::after { content:""; position:absolute; width:26%; height:26%; background:rgba(0,0,0,0.16); border-radius:50%; pointer-events:none; }
         .square.valid-capture { background:#ffc5c5 !important; }
@@ -65,7 +69,7 @@
         .difficulty-btn:hover:not(.active) { background:#f3f4f6; }
         .move-history { background:#fff; border-radius:16px; padding:10px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden; }
         .move-history-title { font-size:0.75rem; color:#6b7280; margin-bottom:4px; cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; gap:4px; }
-        .move-history-arrow { display:inline-block; font-size:1.4rem; line-height:1; color:#374151; transition:transform 0.2s; }
+        .move-history-arrow { display:inline-block; font-size:1.9rem; line-height:1; color:#374151; transition:transform 0.2s; }
         .move-history.collapsed .move-history-arrow { transform:rotate(90deg); }
         .move-list { display:flex; flex-wrap:wrap; gap:4px 8px; max-height:120px; overflow-y:auto; transition:max-height 0.2s, opacity 0.2s, margin 0.2s; }
         .move-history.collapsed .move-list { max-height:0; opacity:0; margin-top:0; overflow:hidden; }
@@ -102,6 +106,127 @@
         .btn.danger:disabled:hover { background:#ff5858; }
         .toast { position:fixed; left:50%; top:14px; transform:translateX(-50%) translateY(-8px); background:rgba(31,41,55,0.92); color:#fff; padding:10px 18px; border-radius:14px; font-size:0.85rem; font-weight:500; opacity:0; pointer-events:none; transition:opacity 0.25s, transform 0.25s; z-index:300; max-width:88vw; text-align:center; }
         .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+        /* ===== 顶部标题：隐形长按入口（无任何视觉提示） ===== */
+        .header { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+        /* ===== 关闭棋盘坐标 ===== */
+        body.hide-coords .coord { display:none !important; }
+        /* ===== 精细设置面板 ===== */
+        .settings-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none; align-items:center; justify-content:center; z-index:400; padding:20px; }
+        .settings-overlay.show { display:flex; }
+        .settings-panel { background:#fff; border-radius:20px; padding:18px 18px 14px; width:100%; max-width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.22); animation:modalPop 0.18s ease; }
+        .settings-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:2px; }
+        .settings-head h2 { font-size:1.05rem; font-weight:600; }
+        .settings-sub { font-size:0.7rem; color:#9ca3af; margin-bottom:12px; }
+        .settings-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 2px; border-top:1px solid #f1f5f9; }
+        .settings-row:first-of-type { border-top:none; }
+        .settings-row-label { font-size:0.9rem; color:#374151; }
+        .settings-row-hint { display:block; font-size:0.7rem; color:#9ca3af; margin-top:3px; }
+        .switch { position:relative; width:48px; height:28px; flex-shrink:0; border:none; border-radius:999px; background:#d1d5db; cursor:pointer; transition:background 0.2s; padding:0; }
+        .switch .knob { position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.28); transition:transform 0.2s; }
+        .switch.on { background:#58cc02; }
+        .switch.on .knob { transform:translateX(20px); }
+        .settings-author { margin-top:14px; padding-top:11px; text-align:center; font-size:0.72rem; color:#9ca3af; letter-spacing:0.5px; }
+        .settings-close { margin-top:12px; width:100%; }
+        /* ===== 深色模式（界面：偏深蓝，不是纯黑） ===== */
+        body.dark { background:#22303f; color:#e6ebf2; }
+        body.dark .status-bar { background:#2b3a4b; box-shadow:0 2px 8px rgba(0,0,0,0.35); }
+        body.dark .status-bar.check-alert { background:#4a2b30; box-shadow:0 0 12px rgba(255,0,0,0.22); }
+        body.dark .eval-score { background:#354657; color:#a9b6c6; }
+        body.dark .btn { background:#354657; color:#e6ebf2; }
+        body.dark .btn:hover { background:#3e5162; }
+        body.dark .difficulty-selector label { color:#a9b6c6; }
+        body.dark .difficulty-btn:not(.active) { background:#2b3a4b; border-color:#3e5162; color:#cfd9e4; }
+        body.dark .difficulty-btn:hover:not(.active) { background:#354657; }
+        body.dark .move-history { background:#2b3a4b; box-shadow:0 2px 8px rgba(0,0,0,0.35); }
+        body.dark .move-history-title { color:#a9b6c6; }
+        body.dark .move-history-arrow { color:#cfd9e4; }
+        body.dark .move-entry { background:#354657; color:#cfd9e4; }
+        body.dark .color-slider { background:#354657; box-shadow:inset 0 1px 3px rgba(0,0,0,0.35); }
+        body.dark .color-slider-opt:not(.active) { color:#a9b6c6; }
+        body.dark .color-slider-opt:not(.active):hover { color:#e6ebf2; }
+        body.dark .header h1 { color:#e6ebf2; }
+        body.dark .modal, body.dark .settings-panel { background:#2b3a4b; color:#e6ebf2; }
+        body.dark .modal p { color:#a9b6c6; }
+        body.dark .promotion-piece { background:#354657; }
+        body.dark .promotion-piece:hover { background:#3e5162; }
+        body.dark .settings-row { border-top-color:#354657; }
+        body.dark .settings-row-label { color:#cfd9e4; }
+        body.dark .switch:not(.on) { background:#3e5162; }
+        body.dark .toast { background:rgba(230,235,242,0.94); color:#1b2634; }
+        /* ===== 深色模式（棋盘：保持原木色，只整体调暗一点，棋子/坐标/高亮都不动） ===== */
+        body.dark .board-wrapper { background:#243040; }
+        body.dark .square.light { background:#ccc6be; }
+        body.dark .square.dark { background:#b4a58f; }
+
+        /* ===== 提示按钮（设置里开启「需要提示」后出现在棋盘右下角） ===== */
+        .hint-btn { position:absolute; right:10px; bottom:10px; width:46px; height:46px; border-radius:50%;
+                    border:none; background:rgba(255,255,255,0.95); box-shadow:0 3px 10px rgba(0,0,0,0.28);
+                    line-height:0; cursor:pointer; z-index:6; display:none;
+                    align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; padding:0; }
+        body.show-hint .hint-btn { display:flex; }
+        .hint-btn:active { transform:scale(0.9); }
+        .hint-btn.busy { animation:hintPulse 0.7s infinite alternate; }
+        @keyframes hintPulse { from { box-shadow:0 3px 10px rgba(0,0,0,0.28); } to { box-shadow:0 0 18px rgba(88,204,2,0.95); } }
+        .square.hint-from { box-shadow:inset 0 0 0 4px rgba(88,204,2,0.9); }
+        .square.hint-to { box-shadow:inset 0 0 0 4px rgba(88,204,2,0.9);
+                          background-image:radial-gradient(circle, rgba(88,204,2,0.45) 0%, rgba(88,204,2,0.08) 60%, rgba(88,204,2,0) 78%); }
+        body.dark .hint-btn { background:rgba(53,70,87,0.96); }
+
+        /* ===== 练习模式面板 ===== */
+        .practice-bar { display:none; background:#fff; border-radius:14px; padding:10px 13px 11px; margin-bottom:10px;
+                        box-shadow:0 2px 10px rgba(0,0,0,0.07); }
+        body.practice .practice-bar { display:block; }
+        body.practice .color-slider-wrap { display:none; }
+        .practice-title { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+        .practice-name { font-size:0.95rem; font-weight:600; color:#1f2937; }
+        .practice-progress { font-size:0.74rem; color:#6b7280; flex-shrink:0; }
+        .practice-goal { font-size:0.76rem; color:#6b7280; margin-top:5px; line-height:1.55; }
+        .practice-track { height:6px; border-radius:3px; background:#e5e7eb; margin-top:9px; overflow:hidden; }
+        .practice-fill { height:100%; width:0; background:#58cc02; border-radius:3px; transition:width 0.25s, background 0.25s; }
+        .practice-fill.warn { background:#f59e0b; }
+        .practice-actions { display:flex; gap:8px; margin-top:10px; }
+        .practice-actions .btn { flex:1; padding:7px 0; font-size:0.8rem; }
+        body.dark .practice-bar { background:#2b3a4b; }
+        body.dark .practice-name { color:#e6ebf2; }
+        body.dark .practice-goal, body.dark .practice-progress { color:#a9b6c6; }
+        body.dark .practice-track { background:#3e5162; }
+
+        /* ===== 练习题选择面板 ===== */
+        .practice-name { cursor:pointer; }
+        .practice-name::after { content:" ▾"; color:#9ca3af; font-size:0.8em; }
+        .practice-meta { font-size:0.7rem; color:#9ca3af; margin-top:3px; }
+        .picker-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none;
+                          align-items:center; justify-content:center; z-index:420; padding:18px; }
+        .picker-overlay.show { display:flex; }
+        .picker-panel { background:#fff; border-radius:20px; padding:16px 15px 13px; width:100%; max-width:340px;
+                        max-height:78vh; display:flex; flex-direction:column; box-shadow:0 10px 30px rgba(0,0,0,0.22);
+                        animation:modalPop 0.18s ease; }
+        .picker-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+        .picker-head h2 { font-size:1.02rem; font-weight:600; }
+        .picker-sub { font-size:0.7rem; color:#9ca3af; }
+        .picker-list { overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; margin:0 -4px; padding:0 4px; }
+        .picker-group { font-size:0.7rem; color:#9ca3af; margin:10px 0 5px; letter-spacing:0.5px; }
+        .picker-group:first-child { margin-top:0; }
+        .picker-item { display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:none;
+                       background:#f6f7f9; border-radius:9px; padding:8px 10px; margin-bottom:5px; cursor:pointer;
+                       font-size:0.82rem; color:#374151; }
+        .picker-item:active { background:#e9ecf1; }
+        .picker-item.cur { background:#e8f8d8; box-shadow:inset 0 0 0 1px #58cc02; }
+        .picker-no { width:20px; color:#9ca3af; font-size:0.72rem; text-align:right; flex-shrink:0; }
+        .picker-name { flex:1; font-weight:500; }
+        .picker-tag { font-size:0.66rem; color:#9ca3af; flex-shrink:0; }
+        .picker-close { margin-top:10px; width:100%; }
+        body.dark .picker-panel { background:#2b3a4b; color:#e6ebf2; }
+        body.dark .picker-item { background:#354657; color:#cfd9e4; }
+        body.dark .picker-item.cur { background:#2f4a2a; }
+        body.dark .picker-sub, body.dark .picker-group, body.dark .picker-no, body.dark .picker-tag { color:#a9b6c6; }
+
+        /* ===== 走棋记录：可点击回溯 ===== */
+        .move-entry .ply { border:none; background:transparent; font:inherit; color:inherit; cursor:pointer;
+                           padding:1px 4px; margin-left:3px; border-radius:5px; font-family:monospace; }
+        .move-entry .ply:active { background:rgba(88,204,2,0.25); }
+        .move-entry .ply.cur { background:#58cc02; color:#fff; }
+        .move-history.rewindable .move-history-title::after { content:"点击可回溯"; font-size:0.65rem; color:#9ca3af; margin-left:8px; }
     </style>
 </head>
 <body>
@@ -123,6 +248,21 @@
         </div>
     </div>
 
+    <div class="practice-bar" id="practiceBar">
+        <div class="practice-title">
+            <span class="practice-name" id="practiceName"></span>
+            <span class="practice-progress" id="practiceProgress"></span>
+        </div>
+        <div class="practice-meta" id="practiceMeta"></div>
+        <div class="practice-goal" id="practiceGoal"></div>
+        <div class="practice-track"><div class="practice-fill" id="practiceFill"></div></div>
+        <div class="practice-actions">
+            <button class="btn" id="practicePrevBtn">上一题</button>
+            <button class="btn" id="practiceRetryBtn">重试</button>
+            <button class="btn primary" id="practiceNextBtn">下一题</button>
+        </div>
+    </div>
+
     <div class="color-slider-wrap" id="colorSliderWrap">
         <div class="color-slider" id="colorSlider" role="radiogroup" aria-label="选择执子颜色">
             <div class="color-slider-thumb" id="colorSliderThumb"></div>
@@ -137,6 +277,13 @@
 
     <div class="board-wrapper" id="boardWrapper">
         <div class="board" id="board"></div>
+        <button class="hint-btn" id="hintBtn" title="提示一步" aria-label="提示一步">
+            <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="#f59e0b" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18h6"/><path d="M10 21.5h4"/>
+                <path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8V17h7.6v-2.7A6.5 6.5 0 0 0 12 2.5z"/>
+            </svg>
+        </button>
     </div>
 
     <div class="captured-pieces" id="capturedByWhite"></div>
@@ -173,6 +320,10 @@
             <button class="btn" id="modalCancelBtn">取消</button>
             <button class="btn danger" id="modalConfirmBtn">确认</button>
         </div>
+        <div class="modal-btn-row" id="modalPracticeRow">
+            <button class="btn" id="modalPracticeRetry">重试本题</button>
+            <button class="btn primary" id="modalPracticeNext">下一题</button>
+        </div>
         <div class="modal-btn-row" id="modalEndRow">
             <button class="btn" id="modalEndCloseBtn">看看棋盘</button>
             <button class="btn primary" id="modalRematchBtn">再来一局</button>
@@ -182,6 +333,39 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="picker-overlay" id="practicePicker">
+    <div class="picker-panel">
+        <div class="picker-head"><h2>选择练习题</h2><span class="picker-sub" id="practicePickerSub"></span></div>
+        <div class="picker-list" id="practicePickerList"></div>
+        <button class="btn picker-close" id="practicePickerClose">关闭</button>
+    </div>
+</div>
+
+<div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-panel">
+        <div class="settings-head"><h2>精细设置</h2></div>
+        <div class="settings-sub">长按顶部标题可再次唤出</div>
+        <div class="settings-row">
+            <span class="settings-row-label">棋盘坐标<span class="settings-row-hint">显示 a–h / 1–8 的格子坐标</span></span>
+            <button class="switch" id="switchCoords" role="switch" aria-checked="true"><span class="knob"></span></button>
+        </div>
+        <div class="settings-row">
+            <span class="settings-row-label">深色模式<span class="settings-row-hint">夜间护眼配色</span></span>
+            <button class="switch" id="switchDark" role="switch" aria-checked="false"><span class="knob"></span></button>
+        </div>
+        <div class="settings-row">
+            <span class="settings-row-label">需要提示<span class="settings-row-hint">开启后棋盘右下角出现提示按钮</span></span>
+            <button class="switch" id="switchHint" role="switch" aria-checked="false"><span class="knob"></span></button>
+        </div>
+        <div class="settings-row">
+            <span class="settings-row-label">练习模式<span class="settings-row-hint">残局杀法练习（后杀单王 / 双象杀王…）</span></span>
+            <button class="switch" id="switchPractice" role="switch" aria-checked="false"><span class="knob"></span></button>
+        </div>
+        <div class="settings-author">作者：無限進步的戎昱</div>
+        <button class="btn settings-close" id="settingsClose">关闭</button>
+    </div>
+</div>
+
 <script>
 // ===================== 国际象棋引擎（优化版） =====================
 const ChessEngine = (() => {
@@ -190,428 +374,823 @@ const ChessEngine = (() => {
     const PIECE_VALUES = { [PAWN]:100, [KNIGHT]:320, [BISHOP]:330, [ROOK]:500, [QUEEN]:900, [KING]:20000 };
 
 // ===== 开局库 =====
-    // 由 79 条经典开局线（意大利/西班牙/西西里/法兰西/卡罗康/后翼弃兵/印度体系/英国式/列蒂等）在引擎中实走生成，
+    // 由 145 条经典开局线（意大利/西班牙/西西里/法兰西/卡罗康/后翼弃兵/尼姆佐/王翼印度/格林菲尔德/英国式/列蒂/荷兰等）
+    // 在引擎中实走生成（键与游戏内 sanHistory 的 moveSAN 输出逐字一致，零手写坐标误差），
     // 键=已走着法序列(moveSAN 格式, 空格分隔, 含双方)，值=候选着法(4位编码 frtc = 起行,起列,终行,终列)。
     // AI 命中即照书走(多候选随机选一，增强变化)；偏离书/走完书后自动回退 minimax。
     const OPENING_BOOK = {
-        "": ["6444","6343","6242","7655","6151","6656"],
-        "e4": ["1434","1232","1424","1222","1333","1323","1626","0625","0122","1121"],
-        "e4 e5": ["7655","6545","7152","6343","7542"],
-        "e4 e5 Nf3": ["0122","0625","1323"],
-        "e4 e5 Nf3 Nc6": ["7542","7531","6343","7152"],
-        "e4 e5 Nf3 Nc6 Bc4": ["0532","0625","0514"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5": ["6252","6141"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3": ["0625"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6": ["6343"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4": ["3443"],
-        "e4 e5 Nf3 Nc6 Bc4 Nf6": ["5536"],
-        "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5": ["1333"],
-        "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5": ["4433"],
-        "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5": ["2230"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4": ["3241"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4": ["6252"],
-        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4 c3": ["4130"],
-        "e4 e5 Nf3 Nc6 Bb5": ["1020","0625"],
-        "e4 e5 Nf3 Nc6 Bb5 a6": ["3140","3122"],
-        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4": ["0625"],
-        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6": ["7476"],
-        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O": ["0514"],
-        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6": ["1322"],
-        "e4 e5 Nf3 Nc6 Bb5 Nf6": ["7476"],
-        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O": ["2544"],
-        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4": ["6343"],
-        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4": ["4423"],
-        "e4 e5 Nf3 Nc6 d4": ["3443"],
-        "e4 e5 Nf3 Nc6 d4 exd4": ["5543"],
-        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4": ["0625","0532"],
-        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6": ["4322"],
-        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6 Nxc6": ["1122"],
-        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5": ["7254"],
-        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Be3": ["0325"],
-        "e4 e5 Nf3 Nc6 Nc3": ["0625"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6": ["7531","7542"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5": ["0541"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4": ["7476"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 O-O": ["0406"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bc4": ["0532"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bc4 Bc5": ["6353"],
-        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bc4 Bc5 d3": ["1323"],
-        "e4 e5 Nf3 Nf6": ["5534"],
-        "e4 e5 Nf3 Nf6 Nxe5": ["1323"],
-        "e4 e5 Nf3 Nf6 Nxe5 d6": ["3455"],
-        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3": ["2544"],
-        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4": ["6343"],
-        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4": ["2333"],
-        "e4 e5 Nf3 d6": ["6343"],
-        "e4 e5 Nf3 d6 d4": ["0625","3443"],
-        "e4 e5 Nf3 d6 d4 Nf6": ["7152"],
-        "e4 e5 Nf3 d6 d4 Nf6 Nc3": ["0113"],
-        "e4 e5 Nf3 d6 d4 exd4": ["5543"],
-        "e4 e5 Nf3 d6 d4 exd4 Nxd4": ["0625"],
-        "e4 e5 Nf3 d6 d4 exd4 Nxd4 Nf6": ["7152"],
-        "e4 e5 Nf3 d6 d4 exd4 Nxd4 Nf6 Nc3": ["1626"],
-        "e4 e5 f4": ["3445"],
-        "e4 e5 f4 exf4": ["7655"],
-        "e4 e5 f4 exf4 Nf3": ["1636"],
-        "e4 e5 f4 exf4 Nf3 g5": ["6747"],
-        "e4 e5 f4 exf4 Nf3 g5 h4": ["3646"],
-        "e4 e5 Nc3": ["0625"],
-        "e4 e5 Nc3 Nf6": ["7542"],
-        "e4 e5 Nc3 Nf6 Bc4": ["2544"],
-        "e4 e5 Nc3 Nf6 Bc4 Nxe4": ["7337"],
-        "e4 e5 Nc3 Nf6 Bc4 Nxe4 Qh5": ["4423"],
-        "e4 e5 d4": ["3443"],
-        "e4 e5 d4 exd4": ["7343"],
-        "e4 e5 d4 exd4 Qxd4": ["0122"],
-        "e4 e5 d4 exd4 Qxd4 Nc6": ["4354"],
-        "e4 e5 d4 exd4 Qxd4 Nc6 Qe3": ["0625"],
-        "e4 e5 Nf3 Nc6 Bc4 Be7": ["6343"],
-        "e4 e5 Nf3 Nc6 Bc4 Be7 d4": ["1323"],
-        "e4 e5 Bc4": ["0625"],
-        "e4 e5 Bc4 Nf6": ["6353"],
-        "e4 e5 Bc4 Nf6 d3": ["1222"],
-        "e4 e5 Bc4 Nf6 d3 c6": ["7655"],
-        "e4 e5 Bc4 Nf6 d3 c6 Nf3": ["1333"],
-        "e4 c5": ["7655","6252","7152","6343"],
-        "e4 c5 Nf3": ["1323","0122","1424"],
-        "e4 c5 Nf3 d6": ["6343","7531"],
-        "e4 c5 Nf3 d6 d4": ["3243"],
-        "e4 c5 Nf3 d6 d4 cxd4": ["5543"],
-        "e4 c5 Nf3 d6 d4 cxd4 Nxd4": ["0625"],
-        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6": ["7152"],
-        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3": ["1020","1626","1424"],
-        "e4 c5 Nf3 Nc6": ["6343"],
-        "e4 c5 Nf3 Nc6 d4": ["3243"],
-        "e4 c5 Nf3 Nc6 d4 cxd4": ["5543"],
-        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4": ["0625"],
-        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6": ["7152"],
-        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3": ["1434","1323"],
-        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 d6": ["7236"],
-        "e4 c5 Nf3 e6": ["6343"],
-        "e4 c5 Nf3 e6 d4": ["3243"],
-        "e4 c5 Nf3 e6 d4 cxd4": ["5543"],
-        "e4 c5 Nf3 e6 d4 cxd4 Nxd4": ["0625"],
-        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6": ["7152"],
-        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6 Nc3": ["1323"],
-        "e4 c5 c3": ["1333"],
-        "e4 c5 c3 d5": ["4433"],
-        "e4 c5 c3 d5 exd5": ["0333"],
-        "e4 c5 c3 d5 exd5 Qxd5": ["6343"],
-        "e4 c5 c3 d5 exd5 Qxd5 d4": ["0625"],
-        "e4 c5 c3 d5 exd5 Qxd5 d4 Nf6": ["7655"],
-        "e4 c5 c3 d5 exd5 Qxd5 d4 Nf6 Nf3": ["1424"],
-        "e4 c5 Nc3": ["0122"],
-        "e4 c5 Nc3 Nc6": ["6656"],
-        "e4 c5 Nc3 Nc6 g3": ["1626"],
-        "e4 c5 Nc3 Nc6 g3 g6": ["7566"],
-        "e4 c5 Nc3 Nc6 g3 g6 Bg2": ["0516"],
-        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7": ["6353"],
-        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3": ["1323"],
-        "e4 c5 d4": ["3243"],
-        "e4 c5 d4 cxd4": ["6252"],
-        "e4 c5 d4 cxd4 c3": ["4352"],
-        "e4 c5 d4 cxd4 c3 dxc3": ["7152"],
-        "e4 c5 d4 cxd4 c3 dxc3 Nxc3": ["0122"],
-        "e4 c5 Nf3 d6 Bb5+": ["0213"],
-        "e4 c5 Nf3 d6 Bb5+ Bd7": ["3113"],
-        "e4 c5 Nf3 d6 Bb5+ Bd7 Bxd7+": ["0313"],
-        "e4 e6": ["6343"],
-        "e4 e6 d4": ["1333"],
-        "e4 e6 d4 d5": ["7152","7163","4434","4433"],
-        "e4 e6 d4 d5 Nc3": ["0625","0541"],
-        "e4 e6 d4 d5 Nc3 Nf6": ["4434","7236"],
-        "e4 e6 d4 d5 Nc3 Nf6 e5": ["2513"],
-        "e4 e6 d4 d5 Nc3 Nf6 e5 Nfd7": ["6545"],
-        "e4 e6 d4 d5 Nc3 Nf6 e5 Nfd7 f4": ["1232"],
-        "e4 e6 d4 d5 Nc3 Nf6 Bg5": ["0514"],
-        "e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7": ["4434"],
-        "e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7 e5": ["2513"],
-        "e4 e6 d4 d5 Nd2": ["0625"],
-        "e4 e6 d4 d5 Nd2 Nf6": ["7655"],
-        "e4 e6 d4 d5 Nd2 Nf6 Ngf3": ["1232"],
-        "e4 e6 d4 d5 e5": ["1232"],
-        "e4 e6 d4 d5 e5 c5": ["6252"],
-        "e4 e6 d4 d5 e5 c5 c3": ["0122"],
-        "e4 e6 d4 d5 e5 c5 c3 Nc6": ["7655"],
-        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3": ["0321"],
-        "e4 e6 d4 d5 exd5": ["2433"],
-        "e4 e6 d4 d5 exd5 exd5": ["7655"],
-        "e4 e6 d4 d5 exd5 exd5 Nf3": ["0625"],
-        "e4 e6 d4 d5 exd5 exd5 Nf3 Nf6": ["7553"],
-        "e4 e6 d4 d5 exd5 exd5 Nf3 Nf6 Bd3": ["0523"],
-        "e4 e6 d4 d5 Nc3 Bb4": ["4434"],
-        "e4 e6 d4 d5 Nc3 Bb4 e5": ["1232"],
-        "e4 e6 d4 d5 Nc3 Bb4 e5 c5": ["6050"],
-        "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3": ["4152"],
-        "e4 c6": ["6343","7655"],
-        "e4 c6 d4": ["1333"],
-        "e4 c6 d4 d5": ["7152","4434","4433"],
-        "e4 c6 d4 d5 Nc3": ["3344"],
-        "e4 c6 d4 d5 Nc3 dxe4": ["5244"],
-        "e4 c6 d4 d5 Nc3 dxe4 Nxe4": ["0235","0113"],
-        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5": ["4456"],
-        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3": ["3526"],
-        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Nd7": ["7655"],
-        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Nd7 Nf3": ["0625"],
-        "e4 c6 d4 d5 e5": ["0235"],
-        "e4 c6 d4 d5 e5 Bf5": ["7655"],
-        "e4 c6 d4 d5 e5 Bf5 Nf3": ["1424"],
-        "e4 c6 d4 d5 exd5": ["2233"],
-        "e4 c6 d4 d5 exd5 cxd5": ["6242"],
-        "e4 c6 d4 d5 exd5 cxd5 c4": ["0625"],
-        "e4 c6 d4 d5 exd5 cxd5 c4 Nf6": ["7152"],
-        "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3": ["1424"],
-        "e4 c6 Nf3": ["1333"],
-        "e4 c6 Nf3 d5": ["4433"],
-        "e4 c6 Nf3 d5 exd5": ["2233"],
-        "e4 c6 Nf3 d5 exd5 cxd5": ["6343"],
-        "e4 c6 Nf3 d5 exd5 cxd5 d4": ["0625"],
-        "e4 c6 Nf3 d5 exd5 cxd5 d4 Nf6": ["6242"],
-        "e4 c6 Nf3 d5 exd5 cxd5 d4 Nf6 c4": ["1424"],
-        "e4 d5": ["4433"],
-        "e4 d5 exd5": ["0333","0625"],
-        "e4 d5 exd5 Qxd5": ["7152"],
-        "e4 d5 exd5 Qxd5 Nc3": ["3330"],
-        "e4 d5 exd5 Qxd5 Nc3 Qa5": ["6343"],
-        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4": ["0625"],
-        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6": ["7655"],
-        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3": ["1222"],
-        "e4 d5 exd5 Nf6": ["6343"],
-        "e4 d5 exd5 Nf6 d4": ["2533"],
-        "e4 d5 exd5 Nf6 d4 Nxd5": ["7655"],
-        "e4 d5 exd5 Nf6 d4 Nxd5 Nf3": ["1626"],
-        "e4 d5 exd5 Nf6 d4 Nxd5 Nf3 g6": ["6242"],
-        "e4 d5 exd5 Nf6 d4 Nxd5 Nf3 g6 c4": ["3321"],
-        "e4 d6": ["6343"],
-        "e4 d6 d4": ["0625"],
-        "e4 d6 d4 Nf6": ["7152"],
-        "e4 d6 d4 Nf6 Nc3": ["1626"],
-        "e4 d6 d4 Nf6 Nc3 g6": ["7655"],
-        "e4 d6 d4 Nf6 Nc3 g6 Nf3": ["0516"],
-        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7": ["7564"],
-        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2": ["0406"],
-        "e4 g6": ["6343"],
-        "e4 g6 d4": ["0516"],
-        "e4 g6 d4 Bg7": ["7152"],
-        "e4 g6 d4 Bg7 Nc3": ["1323"],
-        "e4 g6 d4 Bg7 Nc3 d6": ["7655"],
-        "e4 g6 d4 Bg7 Nc3 d6 Nf3": ["0625"],
-        "e4 g6 d4 Bg7 Nc3 d6 Nf3 Nf6": ["7564"],
-        "e4 g6 d4 Bg7 Nc3 d6 Nf3 Nf6 Be2": ["0406"],
-        "e4 Nf6": ["4434"],
-        "e4 Nf6 e5": ["2533"],
-        "e4 Nf6 e5 Nd5": ["6343"],
-        "e4 Nf6 e5 Nd5 d4": ["1323"],
-        "e4 Nf6 e5 Nd5 d4 d6": ["7655"],
-        "e4 Nf6 e5 Nd5 d4 d6 Nf3": ["1626"],
-        "e4 Nf6 e5 Nd5 d4 d6 Nf3 g6": ["6242"],
-        "e4 Nf6 e5 Nd5 d4 d6 Nf3 g6 c4": ["3321"],
-        "e4 Nc6": ["6343"],
-        "e4 Nc6 d4": ["1333"],
-        "e4 Nc6 d4 d5": ["7152"],
-        "e4 Nc6 d4 d5 Nc3": ["3344"],
-        "e4 Nc6 d4 d5 Nc3 dxe4": ["4333"],
-        "e4 Nc6 d4 d5 Nc3 dxe4 d5": ["2234"],
-        "e4 b6": ["6343"],
-        "e4 b6 d4": ["0211"],
-        "e4 b6 d4 Bb7": ["7152"],
-        "e4 b6 d4 Bb7 Nc3": ["1424"],
-        "e4 b6 d4 Bb7 Nc3 e6": ["7655"],
-        "e4 b6 d4 Bb7 Nc3 e6 Nf3": ["0541"],
-        "d4": ["1333","0625","1535","1323","1424","1232"],
-        "d4 d5": ["6242","7655"],
-        "d4 d5 c4": ["1424","1222","3342","0122","1434"],
-        "d4 d5 c4 e6": ["7152"],
-        "d4 d5 c4 e6 Nc3": ["0625"],
-        "d4 d5 c4 e6 Nc3 Nf6": ["7236","7655","4233"],
-        "d4 d5 c4 e6 Nc3 Nf6 Bg5": ["0514"],
-        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7": ["6454"],
-        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3": ["0406"],
-        "d4 d5 c4 e6 Nc3 Nf6 Nf3": ["1222"],
-        "d4 d5 c4 e6 Nc3 Nf6 Nf3 c6": ["6454"],
-        "d4 d5 c4 e6 Nc3 Nf6 Nf3 c6 e3": ["0113"],
-        "d4 d5 c4 e6 Nc3 Nf6 cxd5": ["2433"],
-        "d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5": ["7236"],
-        "d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5": ["0514"],
-        "d4 d5 c4 c6": ["7655"],
-        "d4 d5 c4 c6 Nf3": ["0625"],
-        "d4 d5 c4 c6 Nf3 Nf6": ["7152"],
-        "d4 d5 c4 c6 Nf3 Nf6 Nc3": ["3342","1424"],
-        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4": ["6040"],
-        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4": ["0235"],
-        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6": ["6454"],
-        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3": ["0113"],
-        "d4 d5 c4 dxc4": ["7655"],
-        "d4 d5 c4 dxc4 Nf3": ["0625"],
-        "d4 d5 c4 dxc4 Nf3 Nf6": ["6454"],
-        "d4 d5 c4 dxc4 Nf3 Nf6 e3": ["1424"],
-        "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6": ["7542"],
-        "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6 Bxc4": ["1232"],
-        "d4 d5 c4 Nc6": ["7655"],
-        "d4 d5 c4 Nc6 Nf3": ["0625"],
-        "d4 d5 c4 Nc6 Nf3 Nf6": ["7152"],
-        "d4 d5 c4 Nc6 Nf3 Nf6 Nc3": ["0246"],
-        "d4 d5 c4 e5": ["4334"],
-        "d4 d5 c4 e5 dxe5": ["3343"],
-        "d4 d5 c4 e5 dxe5 d4": ["7655"],
-        "d4 d5 c4 e5 dxe5 d4 Nf3": ["0122"],
-        "d4 d5 Nf3": ["0625"],
-        "d4 d5 Nf3 Nf6": ["6454","6242"],
-        "d4 d5 Nf3 Nf6 e3": ["1424"],
-        "d4 d5 Nf3 Nf6 e3 e6": ["7553"],
-        "d4 d5 Nf3 Nf6 e3 e6 Bd3": ["1232"],
-        "d4 d5 Nf3 Nf6 e3 e6 Bd3 c5": ["6252"],
-        "d4 d5 Nf3 Nf6 e3 e6 Bd3 c5 c3": ["0122"],
-        "d4 d5 Nf3 Nf6 c4": ["1424"],
-        "d4 d5 Nf3 Nf6 c4 e6": ["7152"],
-        "d4 d5 Nf3 Nf6 c4 e6 Nc3": ["0514"],
-        "d4 d5 Nf3 Nf6 c4 e6 Nc3 Be7": ["7236"],
-        "d4 d5 Nf3 Nf6 c4 e6 Nc3 Be7 Bg5": ["0406"],
-        "d4 Nf6": ["6242","7655"],
-        "d4 Nf6 c4": ["1424","1626","1232","1434"],
-        "d4 Nf6 c4 e6": ["7152","7655"],
-        "d4 Nf6 c4 e6 Nc3": ["0541"],
-        "d4 Nf6 c4 e6 Nc3 Bb4": ["6454"],
-        "d4 Nf6 c4 e6 Nc3 Bb4 e3": ["0406"],
-        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O": ["7553"],
-        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3": ["1333"],
-        "d4 Nf6 c4 g6": ["7152"],
-        "d4 Nf6 c4 g6 Nc3": ["0516","1333"],
-        "d4 Nf6 c4 g6 Nc3 Bg7": ["6444"],
-        "d4 Nf6 c4 g6 Nc3 Bg7 e4": ["1323"],
-        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6": ["7655"],
-        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3": ["0406"],
-        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O": ["7564"],
-        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2": ["1434"],
-        "d4 Nf6 c4 g6 Nc3 d5": ["4233"],
-        "d4 Nf6 c4 g6 Nc3 d5 cxd5": ["2533"],
-        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5": ["6444"],
-        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4": ["3352"],
-        "d4 Nf6 c4 e6 Nf3": ["1121","1333"],
-        "d4 Nf6 c4 e6 Nf3 b6": ["6656"],
-        "d4 Nf6 c4 e6 Nf3 b6 g3": ["0211"],
-        "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7": ["7566"],
-        "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7 Bg2": ["0514"],
-        "d4 Nf6 c4 e6 Nf3 d5": ["6656"],
-        "d4 Nf6 c4 e6 Nf3 d5 g3": ["0514"],
-        "d4 Nf6 c4 e6 Nf3 d5 g3 Be7": ["7566"],
-        "d4 Nf6 c4 e6 Nf3 d5 g3 Be7 Bg2": ["0406"],
-        "d4 Nf6 c4 e6 Nf3 d5 g3 Be7 Bg2 O-O": ["7476"],
-        "d4 Nf6 c4 e6 Nf3 d5 g3 Be7 Bg2 O-O O-O": ["3342"],
-        "d4 Nf6 c4 c5": ["4333"],
-        "d4 Nf6 c4 c5 d5": ["1424"],
-        "d4 Nf6 c4 c5 d5 e6": ["7152"],
-        "d4 Nf6 c4 c5 d5 e6 Nc3": ["2433"],
-        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5": ["4233"],
-        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5": ["1323"],
-        "d4 Nf6 c4 e5": ["4334"],
-        "d4 Nf6 c4 e5 dxe5": ["2546"],
-        "d4 Nf6 c4 e5 dxe5 Ng4": ["7245"],
-        "d4 Nf6 c4 e5 dxe5 Ng4 Bf4": ["0122"],
-        "d4 Nf6 Nf3": ["1424"],
-        "d4 Nf6 Nf3 e6": ["6242"],
-        "d4 Nf6 Nf3 e6 c4": ["1121"],
-        "d4 Nf6 Nf3 e6 c4 b6": ["6656"],
-        "d4 Nf6 Nf3 e6 c4 b6 g3": ["0211"],
-        "d4 f5": ["6656","6242"],
-        "d4 f5 g3": ["0625"],
-        "d4 f5 g3 Nf6": ["7566"],
-        "d4 f5 g3 Nf6 Bg2": ["1424"],
-        "d4 f5 g3 Nf6 Bg2 e6": ["7655"],
-        "d4 f5 g3 Nf6 Bg2 e6 Nf3": ["0514"],
-        "d4 f5 g3 Nf6 Bg2 e6 Nf3 Be7": ["7476"],
-        "d4 f5 g3 Nf6 Bg2 e6 Nf3 Be7 O-O": ["0406"],
-        "d4 f5 c4": ["0625"],
-        "d4 f5 c4 Nf6": ["7152"],
-        "d4 f5 c4 Nf6 Nc3": ["1424"],
-        "d4 f5 c4 Nf6 Nc3 e6": ["7655"],
-        "d4 f5 c4 Nf6 Nc3 e6 Nf3": ["1333"],
-        "d4 d6": ["6242"],
-        "d4 d6 c4": ["1626"],
-        "d4 d6 c4 g6": ["7152"],
-        "d4 d6 c4 g6 Nc3": ["0516"],
-        "d4 d6 c4 g6 Nc3 Bg7": ["6444"],
-        "d4 d6 c4 g6 Nc3 Bg7 e4": ["0625"],
-        "d4 e6": ["6242"],
-        "d4 e6 c4": ["0625"],
-        "d4 e6 c4 Nf6": ["7152"],
-        "d4 e6 c4 Nf6 Nc3": ["0541"],
-        "d4 e6 c4 Nf6 Nc3 Bb4": ["6454"],
-        "d4 e6 c4 Nf6 Nc3 Bb4 e3": ["0406"],
-        "d4 c5": ["4333"],
-        "d4 c5 d5": ["0625"],
-        "d4 c5 d5 Nf6": ["7152"],
-        "d4 c5 d5 Nf6 Nc3": ["1424"],
-        "d4 c5 d5 Nf6 Nc3 e6": ["6444"],
-        "d4 c5 d5 Nf6 Nc3 e6 e4": ["2433"],
-        "c4": ["1232","1434","1424","0625"],
-        "c4 c5": ["7655"],
-        "c4 c5 Nf3": ["0625"],
-        "c4 c5 Nf3 Nf6": ["7152"],
-        "c4 c5 Nf3 Nf6 Nc3": ["0122"],
-        "c4 c5 Nf3 Nf6 Nc3 Nc6": ["6656"],
-        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3": ["1626"],
-        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3 g6": ["7566"],
-        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3 g6 Bg2": ["0516"],
-        "c4 e5": ["7152"],
-        "c4 e5 Nc3": ["0625"],
-        "c4 e5 Nc3 Nf6": ["7655","6656"],
-        "c4 e5 Nc3 Nf6 Nf3": ["0122"],
-        "c4 e5 Nc3 Nf6 Nf3 Nc6": ["6656"],
-        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3": ["1333"],
-        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5": ["4233"],
-        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5": ["2533"],
-        "c4 e5 Nc3 Nf6 g3": ["1333"],
-        "c4 e5 Nc3 Nf6 g3 d5": ["4233"],
-        "c4 e5 Nc3 Nf6 g3 d5 cxd5": ["2533"],
-        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5": ["7566"],
-        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2": ["3321"],
-        "c4 e6": ["7152"],
-        "c4 e6 Nc3": ["1333"],
-        "c4 e6 Nc3 d5": ["6343"],
-        "c4 e6 Nc3 d5 d4": ["0625"],
-        "c4 e6 Nc3 d5 d4 Nf6": ["7655"],
-        "c4 e6 Nc3 d5 d4 Nf6 Nf3": ["0514"],
-        "c4 Nf6": ["7152"],
-        "c4 Nf6 Nc3": ["1424"],
-        "c4 Nf6 Nc3 e6": ["7655"],
-        "c4 Nf6 Nc3 e6 Nf3": ["1333"],
-        "c4 Nf6 Nc3 e6 Nf3 d5": ["6343"],
-        "c4 Nf6 Nc3 e6 Nf3 d5 d4": ["0514"],
+        "": ["6444","6343","6242","7655","6656","6151","6545","6141"],
         "Nf3": ["1333","0625"],
-        "Nf3 d5": ["6242","6343"],
-        "Nf3 d5 c4": ["1424"],
-        "Nf3 d5 c4 e6": ["6656"],
-        "Nf3 d5 c4 e6 g3": ["0625"],
-        "Nf3 d5 c4 e6 g3 Nf6": ["7566"],
-        "Nf3 d5 c4 e6 g3 Nf6 Bg2": ["0514"],
-        "Nf3 Nf6": ["6656"],
-        "Nf3 Nf6 g3": ["1626"],
-        "Nf3 Nf6 g3 g6": ["7566"],
-        "Nf3 Nf6 g3 g6 Bg2": ["0516"],
-        "Nf3 Nf6 g3 g6 Bg2 Bg7": ["7476"],
-        "Nf3 Nf6 g3 g6 Bg2 Bg7 O-O": ["0406"],
-        "Nf3 Nf6 g3 g6 Bg2 Bg7 O-O O-O": ["6353"],
-        "Nf3 Nf6 g3 g6 Bg2 Bg7 O-O O-O d3": ["1323"],
-        "Nf3 d5 d4": ["0625"],
-        "Nf3 d5 d4 Nf6": ["6242"],
-        "Nf3 d5 d4 Nf6 c4": ["1424"],
-        "Nf3 d5 d4 Nf6 c4 e6": ["7152"],
-        "Nf3 d5 d4 Nf6 c4 e6 Nc3": ["0514"],
         "b3": ["1434"],
-        "b3 e5": ["7261"],
-        "b3 e5 Bb2": ["0122"],
-        "b3 e5 Bb2 Nc6": ["6454"],
-        "b3 e5 Bb2 Nc6 e3": ["0625"],
-        "b3 e5 Bb2 Nc6 e3 Nf6": ["7531"],
-        "b3 e5 Bb2 Nc6 e3 Nf6 Bb5": ["0523"],
+        "b4": ["1434"],
+        "c4": ["1232","1434","0625"],
+        "d4": ["1333","0625","1535"],
+        "e4": ["1434","1232","1424","1222","1333","0625","1323","1626","0122","1121"],
+        "f4": ["1333"],
         "g3": ["1333"],
-        "g3 d5": ["7566"],
-        "g3 d5 Bg2": ["1434"],
-        "g3 d5 Bg2 e5": ["6353"],
-        "g3 d5 Bg2 e5 d3": ["0625"],
-        "g3 d5 Bg2 e5 d3 Nf6": ["7655"],
-        "g3 d5 Bg2 e5 d3 Nf6 Nf3": ["0122"]
+        "Nf3 Nf6": ["6343"],
+        "Nf3 d5": ["6242","6656"],
+        "b3 e5": ["7261"],
+        "b4 e5": ["7261"],
+        "c4 Nf6": ["7152"],
+        "c4 c5": ["7655"],
+        "c4 e5": ["7152"],
+        "d4 Nf6": ["6242","7236","7655"],
+        "d4 d5": ["6242","7655","6444"],
+        "d4 f5": ["6656","7655","6242"],
+        "e4 Nc6": ["6343"],
+        "e4 Nf6": ["4434"],
+        "e4 b6": ["6343"],
+        "e4 c5": ["7655","6252","7152","6343"],
+        "e4 c6": ["6343","7152"],
+        "e4 d5": ["4433"],
+        "e4 d6": ["6343","6353"],
+        "e4 e5": ["7655","6545","7152","7542","6343"],
+        "e4 e6": ["6343","6353"],
+        "e4 g6": ["6343"],
+        "f4 d5": ["7655"],
+        "g3 d5": ["7655"],
+        "Nf3 Nf6 d4": ["1424"],
+        "Nf3 d5 c4": ["1424"],
+        "Nf3 d5 g3": ["0625"],
+        "b3 e5 Bb2": ["0122"],
+        "b4 e5 Bb2": ["0541"],
+        "c4 Nf6 Nc3": ["1424","1333"],
+        "c4 c5 Nf3": ["0625"],
+        "c4 e5 Nc3": ["0625"],
+        "d4 Nf6 Bg5": ["1424"],
+        "d4 Nf6 Nf3": ["1424"],
+        "d4 Nf6 c4": ["1424","1626","1232","1434"],
+        "d4 d5 Nf3": ["0625"],
+        "d4 d5 c4": ["1424","3342","1222"],
+        "d4 d5 e4": ["3344"],
+        "d4 f5 Nf3": ["0625"],
+        "d4 f5 c4": ["0625"],
+        "d4 f5 g3": ["0625"],
+        "e4 Nc6 d4": ["1333"],
+        "e4 Nf6 e5": ["2533"],
+        "e4 b6 d4": ["0211"],
+        "e4 c5 Nc3": ["0122"],
+        "e4 c5 Nf3": ["1323","1424","0122","1020","0625","1626"],
+        "e4 c5 c3": ["0625","1333"],
+        "e4 c5 d4": ["3243"],
+        "e4 c6 Nc3": ["1333"],
+        "e4 c6 d4": ["1333"],
+        "e4 d5 exd5": ["0333"],
+        "e4 d6 d3": ["0625"],
+        "e4 d6 d4": ["0625"],
+        "e4 e5 Bc4": ["0625"],
+        "e4 e5 Nc3": ["0625","0122"],
+        "e4 e5 Nf3": ["0122","0625","1323","1535"],
+        "e4 e5 d4": ["3443"],
+        "e4 e5 f4": ["3445","0532"],
+        "e4 e6 d3": ["1333"],
+        "e4 e6 d4": ["1333"],
+        "e4 g6 d4": ["0516"],
+        "f4 d5 Nf3": ["0625"],
+        "g3 d5 Nf3": ["1626"],
+        "Nf3 Nf6 d4 e6": ["6242"],
+        "Nf3 d5 c4 e6": ["6656"],
+        "Nf3 d5 g3 Nf6": ["7566"],
+        "b3 e5 Bb2 Nc6": ["6454"],
+        "b4 e5 Bb2 Bxb4": ["6134"],
+        "c4 Nf6 Nc3 d5": ["4233"],
+        "c4 Nf6 Nc3 e6": ["6444","7655"],
+        "c4 c5 Nf3 Nf6": ["7152"],
+        "c4 e5 Nc3 Nf6": ["7655","6656"],
+        "d4 Nf6 Bg5 e6": ["6444"],
+        "d4 Nf6 Nf3 e6": ["6454"],
+        "d4 Nf6 c4 c5": ["4333"],
+        "d4 Nf6 c4 e5": ["4334"],
+        "d4 Nf6 c4 e6": ["6656","7152","7655"],
+        "d4 Nf6 c4 g6": ["7152","7655"],
+        "d4 d5 Nf3 Nf6": ["7245","6454"],
+        "d4 d5 c4 c6": ["7655"],
+        "d4 d5 c4 dxc4": ["7655"],
+        "d4 d5 c4 e6": ["7152"],
+        "d4 d5 e4 dxe4": ["7152"],
+        "d4 f5 Nf3 Nf6": ["6656"],
+        "d4 f5 c4 Nf6": ["7152"],
+        "d4 f5 g3 Nf6": ["7566"],
+        "e4 Nc6 d4 d5": ["7152"],
+        "e4 Nf6 e5 Nd5": ["6343"],
+        "e4 b6 d4 Bb7": ["7152"],
+        "e4 c5 Nc3 Nc6": ["6656"],
+        "e4 c5 Nf3 Nc6": ["6343","7531"],
+        "e4 c5 Nf3 Nf6": ["4434"],
+        "e4 c5 Nf3 a6": ["6343"],
+        "e4 c5 Nf3 d6": ["6343"],
+        "e4 c5 Nf3 e6": ["6343"],
+        "e4 c5 Nf3 g6": ["6343"],
+        "e4 c5 c3 Nf6": ["4434"],
+        "e4 c5 c3 d5": ["4433"],
+        "e4 c5 d4 cxd4": ["6252"],
+        "e4 c6 Nc3 d5": ["7655"],
+        "e4 c6 d4 d5": ["7152","4434","4433","6555"],
+        "e4 d5 exd5 Qxd5": ["7152"],
+        "e4 d6 d3 Nf6": ["7163"],
+        "e4 d6 d4 Nf6": ["7152"],
+        "e4 e5 Bc4 Nf6": ["6353"],
+        "e4 e5 Nc3 Nc6": ["6545"],
+        "e4 e5 Nc3 Nf6": ["6545"],
+        "e4 e5 Nf3 Nc6": ["7542","6343","7152","7531","6252"],
+        "e4 e5 Nf3 Nf6": ["5534"],
+        "e4 e5 Nf3 d6": ["6343"],
+        "e4 e5 Nf3 f5": ["5534"],
+        "e4 e5 d4 exd4": ["7343","6252"],
+        "e4 e5 f4 Bc5": ["7655"],
+        "e4 e5 f4 exf4": ["7655"],
+        "e4 e6 d3 d5": ["7163"],
+        "e4 e6 d4 d5": ["7152","7163","4434","4433"],
+        "e4 g6 d4 Bg7": ["7152","7655"],
+        "f4 d5 Nf3 Nf6": ["6454"],
+        "g3 d5 Nf3 g6": ["7566"],
+        "Nf3 Nf6 d4 e6 c4": ["1333"],
+        "Nf3 d5 c4 e6 g3": ["0625"],
+        "Nf3 d5 g3 Nf6 Bg2": ["1424"],
+        "b3 e5 Bb2 Nc6 e3": ["0625"],
+        "b4 e5 Bb2 Bxb4 Bxe5": ["0625"],
+        "c4 Nf6 Nc3 d5 cxd5": ["2533"],
+        "c4 Nf6 Nc3 e6 Nf3": ["1333"],
+        "c4 Nf6 Nc3 e6 e4": ["1333"],
+        "c4 c5 Nf3 Nf6 Nc3": ["0122"],
+        "c4 e5 Nc3 Nf6 Nf3": ["0122"],
+        "c4 e5 Nc3 Nf6 g3": ["1333"],
+        "d4 Nf6 Bg5 e6 e4": ["1727"],
+        "d4 Nf6 Nf3 e6 e3": ["1232"],
+        "d4 Nf6 c4 c5 d5": ["1424","1131"],
+        "d4 Nf6 c4 e5 dxe5": ["2546"],
+        "d4 Nf6 c4 e6 Nc3": ["0541"],
+        "d4 Nf6 c4 e6 Nf3": ["1121","0541"],
+        "d4 Nf6 c4 e6 g3": ["1333"],
+        "d4 Nf6 c4 g6 Nc3": ["0516","1333"],
+        "d4 Nf6 c4 g6 Nf3": ["0516"],
+        "d4 d5 Nf3 Nf6 Bf4": ["1424"],
+        "d4 d5 Nf3 Nf6 e3": ["1424"],
+        "d4 d5 c4 c6 Nf3": ["0625"],
+        "d4 d5 c4 dxc4 Nf3": ["0625"],
+        "d4 d5 c4 e6 Nc3": ["0625","1232"],
+        "d4 d5 e4 dxe4 Nc3": ["0625"],
+        "d4 f5 Nf3 Nf6 g3": ["1626"],
+        "d4 f5 c4 Nf6 Nc3": ["1424"],
+        "d4 f5 g3 Nf6 Bg2": ["1424"],
+        "e4 Nc6 d4 d5 Nc3": ["3344"],
+        "e4 Nf6 e5 Nd5 d4": ["1323"],
+        "e4 b6 d4 Bb7 Nc3": ["1424"],
+        "e4 c5 Nc3 Nc6 g3": ["1626"],
+        "e4 c5 Nf3 Nc6 Bb5": ["1626"],
+        "e4 c5 Nf3 Nc6 d4": ["3243"],
+        "e4 c5 Nf3 Nf6 e5": ["2533"],
+        "e4 c5 Nf3 a6 d4": ["3243"],
+        "e4 c5 Nf3 d6 d4": ["3243"],
+        "e4 c5 Nf3 e6 d4": ["3243"],
+        "e4 c5 Nf3 g6 d4": ["3243"],
+        "e4 c5 c3 Nf6 e5": ["2533"],
+        "e4 c5 c3 d5 exd5": ["0333"],
+        "e4 c5 d4 cxd4 c3": ["4352"],
+        "e4 c6 Nc3 d5 Nf3": ["0246"],
+        "e4 c6 d4 d5 Nc3": ["3344"],
+        "e4 c6 d4 d5 e5": ["0235"],
+        "e4 c6 d4 d5 exd5": ["2233"],
+        "e4 c6 d4 d5 f3": ["3344"],
+        "e4 d5 exd5 Qxd5 Nc3": ["3330","3323"],
+        "e4 d6 d3 Nf6 Nd2": ["1626"],
+        "e4 d6 d4 Nf6 Nc3": ["1626"],
+        "e4 e5 Bc4 Nf6 d3": ["1222"],
+        "e4 e5 Nc3 Nc6 f4": ["3445"],
+        "e4 e5 Nc3 Nf6 f4": ["1333"],
+        "e4 e5 Nf3 Nc6 Bb5": ["1020","0625","1535","2243"],
+        "e4 e5 Nf3 Nc6 Bc4": ["0532","0625"],
+        "e4 e5 Nf3 Nc6 Nc3": ["0625"],
+        "e4 e5 Nf3 Nc6 c3": ["0625"],
+        "e4 e5 Nf3 Nc6 d4": ["3443"],
+        "e4 e5 Nf3 Nf6 Nxe5": ["1323"],
+        "e4 e5 Nf3 d6 d4": ["0625"],
+        "e4 e5 Nf3 f5 Nxe5": ["0314"],
+        "e4 e5 d4 exd4 Qxd4": ["0122"],
+        "e4 e5 d4 exd4 c3": ["4352"],
+        "e4 e5 f4 Bc5 Nf3": ["1323"],
+        "e4 e5 f4 exf4 Nf3": ["1636"],
+        "e4 e6 d3 d5 Nd2": ["0625"],
+        "e4 e6 d4 d5 Nc3": ["0541","0625","3344"],
+        "e4 e6 d4 d5 Nd2": ["0625"],
+        "e4 e6 d4 d5 e5": ["1232"],
+        "e4 e6 d4 d5 exd5": ["2433"],
+        "e4 g6 d4 Bg7 Nc3": ["1323"],
+        "e4 g6 d4 Bg7 Nf3": ["1323"],
+        "f4 d5 Nf3 Nf6 e3": ["1626"],
+        "g3 d5 Nf3 g6 Bg2": ["0516"],
+        "Nf3 Nf6 d4 e6 c4 d5": ["7152"],
+        "Nf3 d5 c4 e6 g3 Nf6": ["7566"],
+        "Nf3 d5 g3 Nf6 Bg2 e6": ["7476"],
+        "b3 e5 Bb2 Nc6 e3 Nf6": ["7531"],
+        "c4 Nf6 Nc3 d5 cxd5 Nxd5": ["6656"],
+        "c4 Nf6 Nc3 e6 Nf3 d5": ["6343"],
+        "c4 Nf6 Nc3 e6 e4 d5": ["4434"],
+        "c4 c5 Nf3 Nf6 Nc3 Nc6": ["6656"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6": ["6656","6343"],
+        "c4 e5 Nc3 Nf6 g3 d5": ["4233"],
+        "d4 Nf6 Bg5 e6 e4 h6": ["3625"],
+        "d4 Nf6 Nf3 e6 e3 c5": ["7553"],
+        "d4 Nf6 c4 c5 d5 b5": ["4231"],
+        "d4 Nf6 c4 c5 d5 e6": ["7152"],
+        "d4 Nf6 c4 e5 dxe5 Ng4": ["7245"],
+        "d4 Nf6 c4 e6 Nc3 Bb4": ["6454","7362","7236"],
+        "d4 Nf6 c4 e6 Nf3 Bb4+": ["7263"],
+        "d4 Nf6 c4 e6 Nf3 b6": ["6656","6050"],
+        "d4 Nf6 c4 e6 g3 d5": ["7566"],
+        "d4 Nf6 c4 g6 Nc3 Bg7": ["6444"],
+        "d4 Nf6 c4 g6 Nc3 d5": ["4233"],
+        "d4 Nf6 c4 g6 Nf3 Bg7": ["6656"],
+        "d4 d5 Nf3 Nf6 Bf4 e6": ["6454"],
+        "d4 d5 Nf3 Nf6 e3 e6": ["7553"],
+        "d4 d5 c4 c6 Nf3 Nf6": ["7152"],
+        "d4 d5 c4 dxc4 Nf3 Nf6": ["6454"],
+        "d4 d5 c4 e6 Nc3 Nf6": ["7236","4233","7655"],
+        "d4 d5 c4 e6 Nc3 c5": ["4233"],
+        "d4 d5 e4 dxe4 Nc3 Nf6": ["6555"],
+        "d4 f5 Nf3 Nf6 g3 g6": ["7566"],
+        "d4 f5 c4 Nf6 Nc3 e6": ["7655"],
+        "d4 f5 g3 Nf6 Bg2 e6": ["7655"],
+        "e4 Nc6 d4 d5 Nc3 dxe4": ["4333"],
+        "e4 Nf6 e5 Nd5 d4 d6": ["7655","6242"],
+        "e4 c5 Nc3 Nc6 g3 g6": ["7566"],
+        "e4 c5 Nf3 Nc6 Bb5 g6": ["3122"],
+        "e4 c5 Nf3 Nc6 d4 cxd4": ["5543"],
+        "e4 c5 Nf3 Nf6 e5 Nd5": ["7152"],
+        "e4 c5 Nf3 a6 d4 cxd4": ["5543"],
+        "e4 c5 Nf3 d6 d4 cxd4": ["5543"],
+        "e4 c5 Nf3 e6 d4 cxd4": ["5543"],
+        "e4 c5 Nf3 g6 d4 cxd4": ["5543"],
+        "e4 c5 c3 Nf6 e5 Nd5": ["6343"],
+        "e4 c5 c3 d5 exd5 Qxd5": ["6343"],
+        "e4 c5 d4 cxd4 c3 dxc3": ["7152"],
+        "e4 c6 Nc3 d5 Nf3 Bg4": ["6757"],
+        "e4 c6 d4 d5 Nc3 dxe4": ["5244"],
+        "e4 c6 d4 d5 e5 Bf5": ["7655"],
+        "e4 c6 d4 d5 exd5 cxd5": ["7553","6242"],
+        "e4 c6 d4 d5 f3 dxe4": ["5544"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5": ["6343"],
+        "e4 d5 exd5 Qxd5 Nc3 Qd6": ["6343"],
+        "e4 d6 d3 Nf6 Nd2 g6": ["7655"],
+        "e4 d6 d4 Nf6 Nc3 g6": ["7655","6545"],
+        "e4 e5 Bc4 Nf6 d3 c6": ["7655"],
+        "e4 e5 Nc3 Nc6 f4 exf4": ["7655"],
+        "e4 e5 Nc3 Nf6 f4 d5": ["4534"],
+        "e4 e5 Nf3 Nc6 Bb5 Nd4": ["5543"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6": ["7476"],
+        "e4 e5 Nf3 Nc6 Bb5 a6": ["3140","3122"],
+        "e4 e5 Nf3 Nc6 Bb5 f5": ["7152"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5": ["6252","6353","6141"],
+        "e4 e5 Nf3 Nc6 Bc4 Nf6": ["5536"],
+        "e4 e5 Nf3 Nc6 Nc3 Nf6": ["7531"],
+        "e4 e5 Nf3 Nc6 c3 Nf6": ["6343"],
+        "e4 e5 Nf3 Nc6 d4 exd4": ["5543"],
+        "e4 e5 Nf3 Nf6 Nxe5 d6": ["3455"],
+        "e4 e5 Nf3 d6 d4 Nf6": ["7152"],
+        "e4 e5 Nf3 f5 Nxe5 Qe7": ["6343"],
+        "e4 e5 d4 exd4 Qxd4 Nc6": ["4340"],
+        "e4 e5 d4 exd4 c3 dxc3": ["7542"],
+        "e4 e5 f4 Bc5 Nf3 d6": ["7152"],
+        "e4 e5 f4 exf4 Nf3 g5": ["6747"],
+        "e4 e6 d3 d5 Nd2 Nf6": ["7655"],
+        "e4 e6 d4 d5 Nc3 Bb4": ["4434"],
+        "e4 e6 d4 d5 Nc3 Nf6": ["4434","7236"],
+        "e4 e6 d4 d5 Nc3 dxe4": ["5244"],
+        "e4 e6 d4 d5 Nd2 Nf6": ["4434"],
+        "e4 e6 d4 d5 e5 c5": ["6252"],
+        "e4 e6 d4 d5 exd5 exd5": ["7655"],
+        "e4 g6 d4 Bg7 Nc3 d6": ["6545","7254"],
+        "e4 g6 d4 Bg7 Nf3 d6": ["7564"],
+        "f4 d5 Nf3 Nf6 e3 g6": ["7564"],
+        "g3 d5 Nf3 g6 Bg2 Bg7": ["7476"],
+        "Nf3 Nf6 d4 e6 c4 d5 Nc3": ["0514"],
+        "Nf3 d5 c4 e6 g3 Nf6 Bg2": ["0514"],
+        "Nf3 d5 g3 Nf6 Bg2 e6 O-O": ["0514"],
+        "b3 e5 Bb2 Nc6 e3 Nf6 Bb5": ["0523"],
+        "c4 Nf6 Nc3 d5 cxd5 Nxd5 g3": ["1626"],
+        "c4 Nf6 Nc3 e6 Nf3 d5 d4": ["0514"],
+        "c4 Nf6 Nc3 e6 e4 d5 e5": ["3343"],
+        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3": ["1626"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 d4": ["3443"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3": ["1333"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5": ["2533"],
+        "d4 Nf6 Bg5 e6 e4 h6 Bxf6": ["0325"],
+        "d4 Nf6 Nf3 e6 e3 c5 Bd3": ["1333"],
+        "d4 Nf6 c4 c5 d5 b5 cxb5": ["1020"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3": ["2433"],
+        "d4 Nf6 c4 e5 dxe5 Ng4 Bf4": ["0122"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5": ["1727"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Qc2": ["0406"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3": ["0406","1121"],
+        "d4 Nf6 c4 e6 Nf3 Bb4+ Bd2": ["0314"],
+        "d4 Nf6 c4 e6 Nf3 b6 a3": ["0211"],
+        "d4 Nf6 c4 e6 Nf3 b6 g3": ["0211"],
+        "d4 Nf6 c4 e6 g3 d5 Bg2": ["0514"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4": ["1323"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5": ["2533"],
+        "d4 Nf6 c4 g6 Nf3 Bg7 g3": ["0406"],
+        "d4 d5 Nf3 Nf6 Bf4 e6 e3": ["1232"],
+        "d4 d5 Nf3 Nf6 e3 e6 Bd3": ["1232"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3": ["3342","1424"],
+        "d4 d5 c4 dxc4 Nf3 Nf6 e3": ["1424"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5": ["0514"],
+        "d4 d5 c4 e6 Nc3 Nf6 Nf3": ["3342"],
+        "d4 d5 c4 e6 Nc3 Nf6 cxd5": ["2433"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5": ["2433"],
+        "d4 d5 e4 dxe4 Nc3 Nf6 f3": ["4455"],
+        "d4 f5 Nf3 Nf6 g3 g6 Bg2": ["0516"],
+        "d4 f5 c4 Nf6 Nc3 e6 Nf3": ["1333"],
+        "d4 f5 g3 Nf6 Bg2 e6 Nf3": ["0514"],
+        "e4 Nc6 d4 d5 Nc3 dxe4 d5": ["2234"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3": ["1626","2334"],
+        "e4 Nf6 e5 Nd5 d4 d6 c4": ["3321"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2": ["0516"],
+        "e4 c5 Nf3 Nc6 Bb5 g6 Bxc6": ["1322"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4": ["0625","1626"],
+        "e4 c5 Nf3 Nf6 e5 Nd5 Nc3": ["3352"],
+        "e4 c5 Nf3 a6 d4 cxd4 Nxd4": ["0625"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4": ["0625"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4": ["0625","0122","1020"],
+        "e4 c5 Nf3 g6 d4 cxd4 Nxd4": ["0516"],
+        "e4 c5 c3 Nf6 e5 Nd5 d4": ["3243"],
+        "e4 c5 c3 d5 exd5 Qxd5 d4": ["0625"],
+        "e4 c5 d4 cxd4 c3 dxc3 Nxc3": ["0122"],
+        "e4 c6 Nc3 d5 Nf3 Bg4 h3": ["4655"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4": ["0235","0625"],
+        "e4 c6 d4 d5 e5 Bf5 Nf3": ["1424"],
+        "e4 c6 d4 d5 exd5 cxd5 Bd3": ["0122"],
+        "e4 c6 d4 d5 exd5 cxd5 c4": ["0625"],
+        "e4 c6 d4 d5 f3 dxe4 fxe4": ["1434"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4": ["0625"],
+        "e4 d5 exd5 Qxd5 Nc3 Qd6 d4": ["0625"],
+        "e4 d6 d3 Nf6 Nd2 g6 Ngf3": ["0516"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3": ["0516"],
+        "e4 d6 d4 Nf6 Nc3 g6 f4": ["0516"],
+        "e4 e5 Bc4 Nf6 d3 c6 Nf3": ["1333"],
+        "e4 e5 Nc3 Nc6 f4 exf4 Nf3": ["1636"],
+        "e4 e5 Nc3 Nf6 f4 d5 fxe5": ["2544"],
+        "e4 e5 Nf3 Nc6 Bb5 Nd4 Nxd4": ["3443"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O": ["2544"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4": ["0625"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6": ["1322"],
+        "e4 e5 Nf3 Nc6 Bb5 f5 Nc3": ["3544"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4": ["3221","3241"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3": ["0625"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3": ["0625"],
+        "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5": ["1333"],
+        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5": ["0541"],
+        "e4 e5 Nf3 Nc6 c3 Nf6 d4": ["2544"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4": ["0532","0625"],
+        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3": ["2544"],
+        "e4 e5 Nf3 d6 d4 Nf6 Nc3": ["3443"],
+        "e4 e5 Nf3 f5 Nxe5 Qe7 d4": ["1323"],
+        "e4 e5 d4 exd4 Qxd4 Nc6 Qa4": ["0625"],
+        "e4 e5 d4 exd4 c3 dxc3 Bc4": ["5261"],
+        "e4 e5 f4 Bc5 Nf3 d6 Nc3": ["0625"],
+        "e4 e5 f4 exf4 Nf3 g5 h4": ["3646"],
+        "e4 e6 d3 d5 Nd2 Nf6 Ngf3": ["1232"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5": ["1232"],
+        "e4 e6 d4 d5 Nc3 Nf6 Bg5": ["0514"],
+        "e4 e6 d4 d5 Nc3 Nf6 e5": ["2513"],
+        "e4 e6 d4 d5 Nc3 dxe4 Nxe4": ["0113"],
+        "e4 e6 d4 d5 Nd2 Nf6 e5": ["2513"],
+        "e4 e6 d4 d5 e5 c5 c3": ["0122"],
+        "e4 e6 d4 d5 exd5 exd5 Nf3": ["0625"],
+        "e4 g6 d4 Bg7 Nc3 d6 Be3": ["1020"],
+        "e4 g6 d4 Bg7 Nc3 d6 f4": ["0625"],
+        "e4 g6 d4 Bg7 Nf3 d6 Be2": ["0625"],
+        "f4 d5 Nf3 Nf6 e3 g6 Be2": ["0516"],
+        "g3 d5 Nf3 g6 Bg2 Bg7 O-O": ["1434"],
+        "Nf3 d5 c4 e6 g3 Nf6 Bg2 Be7": ["7476"],
+        "Nf3 d5 g3 Nf6 Bg2 e6 O-O Be7": ["6353"],
+        "c4 Nf6 Nc3 d5 cxd5 Nxd5 g3 g6": ["7566"],
+        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3 g6": ["7566"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 d4 exd4": ["5543"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5": ["4233"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5": ["7566"],
+        "d4 Nf6 Nf3 e6 e3 c5 Bd3 d5": ["6151"],
+        "d4 Nf6 c4 c5 d5 b5 cxb5 a6": ["3120"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5": ["4233"],
+        "d4 Nf6 c4 e5 dxe5 Ng4 Bf4 Nc6": ["7655"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5 h6": ["3647"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Qc2 O-O": ["6050"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O": ["7553"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 b6": ["7664"],
+        "d4 Nf6 c4 e6 Nf3 Bb4+ Bd2 Qe7": ["6656"],
+        "d4 Nf6 c4 e6 Nf3 b6 a3 Bb7": ["7152"],
+        "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7": ["7566"],
+        "d4 Nf6 c4 e6 g3 d5 Bg2 Be7": ["7655"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6": ["7655","6555","6545"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5": ["6444"],
+        "d4 Nf6 c4 g6 Nf3 Bg7 g3 O-O": ["7566"],
+        "d4 d5 Nf3 Nf6 Bf4 e6 e3 c5": ["6252"],
+        "d4 d5 Nf3 Nf6 e3 e6 Bd3 c5": ["6151"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4": ["6040"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6": ["6454","7236"],
+        "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6": ["7542"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7": ["6454"],
+        "d4 d5 c4 e6 Nc3 Nf6 Nf3 dxc4": ["6444"],
+        "d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5": ["7236"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5": ["7655"],
+        "d4 d5 e4 dxe4 Nc3 Nf6 f3 exf3": ["7655"],
+        "d4 f5 Nf3 Nf6 g3 g6 Bg2 Bg7": ["7476"],
+        "d4 f5 c4 Nf6 Nc3 e6 Nf3 d5": ["6454"],
+        "d4 f5 g3 Nf6 Bg2 e6 Nf3 Be7": ["7476"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3 dxe5": ["5534"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3 g6": ["7542"],
+        "e4 Nf6 e5 Nd5 d4 d6 c4 Nb6": ["6545"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7": ["6353"],
+        "e4 c5 Nf3 Nc6 Bb5 g6 Bxc6 dxc6": ["6353"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6": ["7152"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6": ["7152"],
+        "e4 c5 Nf3 Nf6 e5 Nd5 Nc3 Nxc3": ["6352"],
+        "e4 c5 Nf3 a6 d4 cxd4 Nxd4 Nf6": ["7152"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6": ["7152"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6": ["7152"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6": ["7152"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6": ["7152"],
+        "e4 c5 c3 Nf6 e5 Nd5 d4 cxd4": ["7655"],
+        "e4 c5 c3 d5 exd5 Qxd5 d4 Nf6": ["7655"],
+        "e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6": ["7655"],
+        "e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3": ["7355"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5": ["4456"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Nf6": ["4425"],
+        "e4 c6 d4 d5 e5 Bf5 Nf3 e6": ["7564"],
+        "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6": ["6252"],
+        "e4 c6 d4 d5 exd5 cxd5 c4 Nf6": ["7152"],
+        "e4 c6 d4 d5 f3 dxe4 fxe4 e5": ["7655"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6": ["7655"],
+        "e4 d5 exd5 Qxd5 Nc3 Qd6 d4 Nf6": ["7655"],
+        "e4 d6 d3 Nf6 Nd2 g6 Ngf3 Bg7": ["6656"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7": ["7564"],
+        "e4 d6 d4 Nf6 Nc3 g6 f4 Bg7": ["7655"],
+        "e4 e5 Nc3 Nc6 f4 exf4 Nf3 g5": ["6747"],
+        "e4 e5 Nc3 Nf6 f4 d5 fxe5 Nxe4": ["7655"],
+        "e4 e5 Nf3 Nc6 Bb5 Nd4 Nxd4 exd4": ["7476"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4": ["6343"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6": ["7476"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6": ["7476"],
+        "e4 e5 Nf3 Nc6 Bb5 f5 Nc3 fxe4": ["5244"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bb6": ["6040"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4": ["6252"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6": ["6343"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6": ["6252"],
+        "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5": ["4433"],
+        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4": ["7476"],
+        "e4 e5 Nf3 Nc6 c3 Nf6 d4 Nxe4": ["4333"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5": ["7254"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6": ["4322"],
+        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4": ["6343"],
+        "e4 e5 Nf3 d6 d4 Nf6 Nc3 exd4": ["5543"],
+        "e4 e5 Nf3 f5 Nxe5 Qe7 d4 d6": ["3455"],
+        "e4 e5 d4 exd4 c3 dxc3 Bc4 cxb2": ["7261"],
+        "e4 e5 f4 exf4 Nf3 g5 h4 g4": ["5534"],
+        "e4 e6 d3 d5 Nd2 Nf6 Ngf3 c5": ["6656"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5 c5": ["6050"],
+        "e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7": ["4434"],
+        "e4 e6 d4 d5 Nc3 Nf6 e5 Nfd7": ["6545"],
+        "e4 e6 d4 d5 Nc3 dxe4 Nxe4 Nd7": ["7655"],
+        "e4 e6 d4 d5 Nd2 Nf6 e5 Nfd7": ["7553"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6": ["7655"],
+        "e4 e6 d4 d5 exd5 exd5 Nf3 Nf6": ["7553"],
+        "e4 g6 d4 Bg7 Nc3 d6 Be3 a6": ["7363"],
+        "e4 g6 d4 Bg7 Nc3 d6 f4 Nf6": ["7655"],
+        "e4 g6 d4 Bg7 Nf3 d6 Be2 Nf6": ["7476"],
+        "g3 d5 Nf3 g6 Bg2 Bg7 O-O e5": ["6353"],
+        "Nf3 d5 c4 e6 g3 Nf6 Bg2 Be7 O-O": ["0406"],
+        "Nf3 d5 g3 Nf6 Bg2 e6 O-O Be7 d3": ["0406"],
+        "c4 Nf6 Nc3 d5 cxd5 Nxd5 g3 g6 Bg2": ["3321"],
+        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3 g6 Bg2": ["0516"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 d4 exd4 Nxd4": ["0541"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5": ["2533"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2": ["3321"],
+        "d4 Nf6 Nf3 e6 e3 c5 Bd3 d5 b3": ["0122"],
+        "d4 Nf6 c4 c5 d5 b5 cxb5 a6 bxa6": ["0220"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5": ["1323"],
+        "d4 Nf6 c4 e5 dxe5 Ng4 Bf4 Nc6 Nf3": ["0541"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5 h6 Bh4": ["1232"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Qc2 O-O a3": ["4152"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3": ["1333"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 b6 Nge2": ["0220"],
+        "d4 Nf6 c4 e6 Nf3 Bb4+ Bd2 Qe7 g3": ["0406"],
+        "d4 Nf6 c4 e6 Nf3 b6 a3 Bb7 Nc3": ["1333"],
+        "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7 Bg2": ["0514"],
+        "d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3": ["0406"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3": ["0406"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3": ["0406"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f4": ["0406"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4": ["3352"],
+        "d4 Nf6 c4 g6 Nf3 Bg7 g3 O-O Bg2": ["1323"],
+        "d4 d5 Nf3 Nf6 Bf4 e6 e3 c5 c3": ["0122"],
+        "d4 d5 Nf3 Nf6 e3 e6 Bd3 c5 b3": ["0122"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4": ["0235"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 Bg5": ["3342"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3": ["0113"],
+        "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6 Bxc4": ["1232"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3": ["0406"],
+        "d4 d5 c4 e6 Nc3 Nf6 Nf3 dxc4 e4": ["1131"],
+        "d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5": ["0514"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3": ["0122"],
+        "d4 f5 Nf3 Nf6 g3 g6 Bg2 Bg7 O-O": ["0406"],
+        "d4 f5 c4 Nf6 Nc3 e6 Nf3 d5 e3": ["1222"],
+        "d4 f5 g3 Nf6 Bg2 e6 Nf3 Be7 O-O": ["0406"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3 dxe5 Nxe5": ["1222"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3 g6 Bc4": ["3321"],
+        "e4 Nf6 e5 Nd5 d4 d6 c4 Nb6 f4": ["2334"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3": ["1323"],
+        "e4 c5 Nf3 Nc6 Bb5 g6 Bxc6 dxc6 d3": ["0516"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3": ["1434"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 Nc3": ["0516"],
+        "e4 c5 Nf3 a6 d4 cxd4 Nxd4 Nf6 Nc3": ["1434"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3": ["1020","1626","0122","1424"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6 Nc3": ["0312"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6 Nc3": ["1323"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6 Nc3": ["0312"],
+        "e4 c5 c3 Nf6 e5 Nd5 d4 cxd4 Nf3": ["0122"],
+        "e4 c5 c3 d5 exd5 Qxd5 d4 Nf6 Nf3": ["0246"],
+        "e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6 Nf3": ["1323"],
+        "e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3 Qxf3": ["1424"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3": ["3526"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Nf6 Nxf6+": ["1625"],
+        "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2": ["2232","0113"],
+        "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6 c3": ["0625"],
+        "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3": ["1424"],
+        "e4 c6 d4 d5 f3 dxe4 fxe4 e5 Nf3": ["3443"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3": ["1222"],
+        "e4 d5 exd5 Qxd5 Nc3 Qd6 d4 Nf6 Nf3": ["1020"],
+        "e4 d6 d3 Nf6 Nd2 g6 Ngf3 Bg7 g3": ["0406"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2": ["0406"],
+        "e4 d6 d4 Nf6 Nc3 g6 f4 Bg7 Nf3": ["0406"],
+        "e4 e5 Nc3 Nc6 f4 exf4 Nf3 g5 h4": ["3646"],
+        "e4 e5 Nc3 Nf6 f4 d5 fxe5 Nxe4 Nf3": ["0514"],
+        "e4 e5 Nf3 Nc6 Bb5 Nd4 Nxd4 exd4 O-O": ["0532"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4": ["4423"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O": ["0514","2544"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6 O-O": ["1525"],
+        "e4 e5 Nf3 Nc6 Bb5 f5 Nc3 fxe4 Nxe4": ["1333"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bb6 a4": ["1020"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4 c3": ["4130"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4": ["3443"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 c3": ["1323"],
+        "e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5": ["2230","2243"],
+        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 O-O": ["0406"],
+        "e4 e5 Nf3 Nc6 c3 Nf6 d4 Nxe4 d5": ["0541"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Be3": ["0325"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6 Nxc6": ["1122"],
+        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4": ["2333"],
+        "e4 e5 Nf3 d6 d4 Nf6 Nc3 exd4 Nxd4": ["0514"],
+        "e4 e5 Nf3 f5 Nxe5 Qe7 d4 d6 Nf3": ["1444"],
+        "e4 e6 d3 d5 Nd2 Nf6 Ngf3 c5 g3": ["0122"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3": ["4152"],
+        "e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7 e5": ["2513"],
+        "e4 e6 d4 d5 Nc3 Nf6 e5 Nfd7 f4": ["1232"],
+        "e4 e6 d4 d5 Nc3 dxe4 Nxe4 Nd7 Nf3": ["0625"],
+        "e4 e6 d4 d5 Nd2 Nf6 e5 Nfd7 Bd3": ["1232"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3": ["0321"],
+        "e4 e6 d4 d5 exd5 exd5 Nf3 Nf6 Bd3": ["0523"],
+        "e4 g6 d4 Bg7 Nc3 d6 Be3 a6 Qd2": ["1131"],
+        "e4 g6 d4 Bg7 Nc3 d6 f4 Nf6 Nf3": ["0406"],
+        "e4 g6 d4 Bg7 Nf3 d6 Be2 Nf6 O-O": ["0406"],
+        "g3 d5 Nf3 g6 Bg2 Bg7 O-O e5 d3": ["0614"],
+        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3 g6 Bg2 Bg7": ["7476"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5 Nxd5": ["7566"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2 Nb6": ["7655"],
+        "d4 Nf6 Nf3 e6 e3 c5 Bd3 d5 b3 Nc6": ["7261"],
+        "d4 Nf6 c4 c5 d5 b5 cxb5 a6 bxa6 Bxa6": ["7152"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5 d6": ["6444"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5 h6 Bh4 c5": ["4333"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Qc2 O-O a3 Bxc3+": ["6252"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5": ["7655"],
+        "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7 Bg2 Be7": ["7476"],
+        "d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3 O-O": ["7476"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O": ["7564"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3 O-O": ["7254"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f4 O-O": ["7655"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3": ["6152"],
+        "d4 Nf6 c4 g6 Nf3 Bg7 g3 O-O Bg2 d6": ["7476"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4 Bf5": ["6454"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 Bg5 dxc4": ["6444"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3 Nbd7": ["7553"],
+        "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6 Bxc4 c5": ["7476"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O": ["7655"],
+        "d4 d5 c4 e6 Nc3 Nf6 Nf3 dxc4 e4 b5": ["4434"],
+        "d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5 Be7": ["6454"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6": ["6656"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3 dxe5 Nxe5 c6": ["7564"],
+        "e4 Nf6 e5 Nd5 d4 d6 c4 Nb6 f4 dxe5": ["4534"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3 d6": ["6545","7254"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5": ["4331"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 Nc3 Bg7": ["7254"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6": ["7236"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6": ["7254","7236","7564"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6": ["6646","7564"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6": ["7254"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6 Nc3 Qc7": ["7254"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6 Nc3 d6": ["7564"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6 Nc3 Qc7": ["7553"],
+        "e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6 Nf3 d6": ["7542"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6": ["6747"],
+        "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5": ["7254"],
+        "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6": ["7655"],
+        "e4 c6 d4 d5 f3 dxe4 fxe4 e5 Nf3 exd4": ["7542"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6": ["7542"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2 O-O": ["7476"],
+        "e4 d6 d4 Nf6 Nc3 g6 f4 Bg7 Nf3 O-O": ["7553"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6": ["3122"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7": ["7574"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4": ["6343"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6 O-O f6": ["6343"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bb6 a4 a6": ["7152"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4 c3 Ba5": ["6343"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4": ["5243"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 c3 d6": ["7476"],
+        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 O-O O-O": ["6353"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Be3 Qf6": ["6252"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6 Nxc6 bxc6": ["4434"],
+        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4 d5": ["7553"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3 Bxc3+": ["6152"],
+        "e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7 e5 Nfd7": ["3614"],
+        "e4 e6 d4 d5 Nc3 Nf6 e5 Nfd7 f4 c5": ["7655","4332"],
+        "e4 e6 d4 d5 Nc3 dxe4 Nxe4 Nd7 Nf3 Ngf6": ["4425"],
+        "e4 e6 d4 d5 Nd2 Nf6 e5 Nfd7 Bd3 c5": ["6252"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6": ["6050"],
+        "c4 c5 Nf3 Nf6 Nc3 Nc6 g3 g6 Bg2 Bg7 O-O": ["0406"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5 Nxd5 Bg2": ["3321"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2 Nb6 Nf3": ["0122"],
+        "d4 Nf6 Nf3 e6 e3 c5 Bd3 d5 b3 Nc6 Bb2": ["0523"],
+        "d4 Nf6 c4 c5 d5 b5 cxb5 a6 bxa6 Bxa6 Nc3": ["1323"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5 d6 e4": ["1626"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5 h6 Bh4 c5 d5": ["4152"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Qc2 O-O a3 Bxc3+ Qxc3": ["1121"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3": ["1232"],
+        "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7 Bg2 Be7 O-O": ["0406"],
+        "d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3 O-O O-O": ["3342"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2": ["1434"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3 O-O Be3": ["1434"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f4 O-O Nf3": ["1232"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3": ["0516"],
+        "d4 Nf6 c4 g6 Nf3 Bg7 g3 O-O Bg2 d6 O-O": ["0113"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4 Bf5 e3": ["1424"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 Bg5 dxc4 e4": ["1131"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3 Nbd7 Bd3": ["3342"],
+        "d4 d5 c4 dxc4 Nf3 Nf6 e3 e6 Bxc4 c5 O-O": ["1020"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3": ["1727","0113"],
+        "d4 d5 c4 e6 Nc3 Nf6 Nf3 dxc4 e4 b5 e5": ["2533"],
+        "d4 d5 c4 e6 Nc3 Nf6 cxd5 exd5 Bg5 Be7 e3": ["1222"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3": ["0625"],
+        "e4 Nf6 e5 Nd5 d4 d6 Nf3 dxe5 Nxe5 c6 Be2": ["0235"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3 d6 Be3": ["1424"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5": ["1323"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 Nc3 Bg7 Be3": ["0625"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5": ["1424"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2": ["1434"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3": ["1434"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5": ["1424"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6 Be2": ["1020"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6 g4": ["1727"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3": ["0516"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6 Nc3 Qc7 Be3": ["1020"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6 Nc3 d6 Be2": ["0514"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6 Nc3 Qc7 Bd3": ["0625"],
+        "e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6 Nf3 d6 Bc4": ["1424"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4": ["1727"],
+        "e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 Be3": ["0321"],
+        "e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6 Nf3": ["0514"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4": ["0235"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2 O-O O-O": ["1222","0122"],
+        "e4 d6 d4 Nf6 Nc3 g6 f4 Bg7 Nf3 O-O Bd3": ["0122"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6": ["1322"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1": ["1131"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4": ["1131"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6 O-O f6 d4": ["3443"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bb6 a4 a6 Nc3": ["0625"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4": ["3241"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 c3 d6 O-O": ["0406","1727"],
+        "e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 O-O O-O d3": ["1323"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Be3 Qf6 c3": ["0614"],
+        "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6 Nxc6 bxc6 e5": ["0314"],
+        "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4 d5 Bd3": ["0122","0514"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3 Bxc3+ bxc3": ["0614","0312"],
+        "e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7 e5 Nfd7 Bxe7": ["0314"],
+        "e4 e6 d4 d5 Nc3 Nf6 e5 Nfd7 f4 c5 Nf3": ["0122"],
+        "e4 e6 d4 d5 Nc3 dxe4 Nxe4 Nd7 Nf3 Ngf6 Nxf6+": ["1325"],
+        "e4 e6 d4 d5 Nd2 Nf6 e5 Nfd7 Bd3 c5 c3": ["0122"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 a3": ["0627","0213"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5 Nxd5 Bg2 Nb6": ["7476"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2 Nb6 Nf3 Nc6": ["7476"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5 d6 e4 g6": ["7655"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5 h6 Bh4 c5 d5 Bxc3+": ["6152"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5": ["7476"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5": ["7476"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3 O-O Be3 e5": ["4333"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f4 O-O Nf3 c5": ["4333"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7": ["7542","7655"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4 Bf5 e3 e6": ["7542"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3 Nbd7 Bd3 dxc4": ["5342"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7": ["7072"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3 Nf6": ["7566"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3 d6 Be3 e6": ["7363"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5 d6": ["7236"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 Nc3 Bg7 Be3 Nf6": ["7542"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6": ["7363"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2 e5": ["4351"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5": ["4351"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6": ["6545"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7": ["6555"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6 Nc3 d6 Be2 Be7": ["7476"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6": ["7655"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4 Bf5": ["7263"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2 O-O O-O Nc6": ["4333"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6": ["4334"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5": ["4051"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4 b5": ["4051"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6 O-O f6 d4 exd4": ["5543"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 c3 d6 O-O h6": ["7574"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3 Bxc3+ bxc3 Qc7": ["7346"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 a3 Bd7": ["6141"],
+        "c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5 Nxd5 Bg2 Nb6 O-O": ["0514"],
+        "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2 Nb6 Nf3 Nc6 O-O": ["0514"],
+        "d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5 d6 e4 g6 Nf3": ["0516"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 Bg5 h6 Bh4 c5 d5 Bxc3+ bxc3": ["1323"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O": ["0122"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O": ["0122"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3 O-O Be3 e5 d5": ["2537"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f4 O-O Nf3 c5 d5": ["1424"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Bc4": ["1232"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3": ["1232"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4 Bf5 e3 e6 Bxc4": ["0541"],
+        "d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3 Nbd7 Bd3 dxc4 Bxc4": ["1131"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1": ["1222"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3 Nf6 Bg2": ["0514"],
+        "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3 d6 Be3 e6 Qd2": ["0614"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5 d6 Bg5": ["1020"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 Nc3 Bg7 Be3 Nf6 Bc4": ["0406"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6 Qd2": ["1020","0514"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2 e5 Nb3": ["0514"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5 Nb3": ["0224"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4": ["0514"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3": ["0406"],
+        "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nf6 Nc3 d6 Be2 Be7 O-O": ["0406"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3": ["0113"],
+        "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4 Bf5 Bd2": ["1424"],
+        "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2 O-O O-O Nc6 d5": ["2201"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5": ["2335"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3": ["1323","0406"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4 b5 Bb3": ["1333"],
+        "e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 c3 d6 O-O h6 Re1": ["0406"],
+        "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3 Bxc3+ bxc3 Qc7 Qg4": ["1535"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 a3 Bd7 b4": ["3243"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6": ["6050"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6": ["4333"],
+        "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3 c5": ["7071"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1 c6": ["7553"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3 Nf6 Bg2 Be7": ["7476"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5 d6 Bg5 a6": ["3150"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6 Qd2 Be7": ["7472"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2 e5 Nb3 Be7": ["7476"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 O-O": ["7363"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7": ["4737"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5": ["7303"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 O-O": ["6252"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6": ["6252"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4 b5 Bb3 d5": ["4334"],
+        "e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 a3 Bd7 b4 cxd4": ["5243"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6 a3": ["4152"],
+        "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6 d5": ["2214"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1 c6 Bd3": ["3342"],
+        "d4 d5 c4 e6 Nc3 c5 cxd5 exd5 Nf3 Nc6 g3 Nf6 Bg2 Be7 O-O": ["0406"],
+        "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5 d6 Bg5 a6 Na3": ["1131"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6 Qd2 Be7 O-O-O": ["0406"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2 e5 Nb3 Be7 O-O": ["0406"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 O-O Qd2": ["0122"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5": ["2617"],
+        "e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5 Qxd8+": ["0403"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 O-O c3": ["1333"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3": ["0406","2230"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4 b5 Bb3 d5 dxe5": ["0224"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6 a3 Bxc3": ["6152"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1 c6 Bd3 dxc4": ["5342"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 O-O Qd2 Nc6": ["7542"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7": ["7553"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 O-O c3 d5": ["4433"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 Na5": ["5162"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O": ["6757"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6 a3 Bxc3 bxc3": ["3342"],
+        "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1 c6 Bd3 dxc4 Bxc4": ["2533"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 O-O Qd2 Nc6 Bc4": ["0213"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3": ["1753"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 O-O c3 d5 exd5": ["2533"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 Na5 Bc2": ["1232"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3": ["2230"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6 a3 Bxc3 bxc3 dxc4": ["5342"],
+        "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 O-O Qd2 Nc6 Bc4 Bd7": ["7472"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3": ["7353"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Na5": ["5162"],
+        "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6 a3 Bxc3 bxc3 dxc4 Bxc4": ["0312"],
+        "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3 Qxd3": ["1424"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Na5 Bc2": ["1232"],
+        "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Na5 Bc2 c5": ["6343"]
     };
     function findOpeningBookMove(sanHistory) {
         if (!sanHistory || !Array.isArray(sanHistory)) return null;
@@ -662,6 +1241,32 @@ const ChessEngine = (() => {
     ];
     const POSITION_TABLES = { [PAWN]:PAWN_TABLE, [KNIGHT]:KNIGHT_TABLE, [BISHOP]:BISHOP_TABLE, [ROOK]:ROOK_TABLE, [QUEEN]:QUEEN_TABLE, [KING]:KING_TABLE };
 
+
+
+    // 残局王表：残局时王要往中心靠（中局那张表是"躲在家里"，残局用它会让王闲着）
+    const KING_ENDGAME_TABLE = [
+        [-50,-30,-30,-30,-30,-30,-30,-50],[-30,-20,-10,  0,  0,-10,-20,-30],
+        [-30,-10, 20, 30, 30, 20,-10,-30],[-30,-10, 30, 40, 40, 30,-10,-30],
+        [-30,-10, 30, 40, 40, 30,-10,-30],[-30,-10, 20, 30, 30, 20,-10,-30],
+        [-30,-30,  0,  0,  0,  0,-30,-30],[-50,-30,-30,-30,-30,-30,-30,-50]
+    ];
+    // 评估附加项权重
+    const BISHOP_PAIR_BONUS = 35;   // 象对
+    const DOUBLED_PENALTY   = 14;   // 每多一个叠兵
+    const ISOLATED_PENALTY  = 16;   // 每个孤兵
+    const ROOK_OPEN_BONUS   = 22;   // 车在完全开放线
+    const ROOK_SEMI_BONUS   = 11;   // 车在半开放线
+    const PASSED_MID  = [10, 6];    // 通路兵：基础分 + 每前进一行的加分（中局）
+    const PASSED_END  = [14, 10];   // 通路兵（残局）
+    const PHASE_ENDGAME = 1400;     // 非兵子力总量低于此值视为残局
+
+    // 评估用的暂存区（模块级复用，避免每个叶子节点都分配新数组）
+    const _pc = [new Int8Array(8), new Int8Array(8)];   // [色][列] 兵数
+    const _pMax = new Int8Array(8);                     // 白兵各列最大行(判断黑兵能否被挡)
+    const _pMin = new Int8Array(8);                     // 黑兵各列最小行(判断白兵能否被挡)
+    const _rookMask = new Int32Array(2);                // 车所在列的位掩码
+    const _wpSq = new Int16Array(16), _bpSq = new Int16Array(16);
+
     function createInitialBoard() {
         const b = Array(8).fill().map(() => Array(8).fill(0));
         b[0] = [-4,-2,-3,-5,-6,-3,-2,-4];
@@ -684,6 +1289,65 @@ const ChessEngine = (() => {
             }
         }
         return moves;
+    }
+
+    // 只生成吃子/升变着法（静态搜索专用）。静态搜索只要"危险着法"，
+    // 若先生成全部着法再过滤，等于白算了一遍安静着法的合法性，开销大得多。
+    function generateCaptures(board, color, enPassantTarget) {
+        const out = [];
+        const promoRow = color === WHITE ? 0 : 7, dir = color === WHITE ? -1 : 1;
+        for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
+            const p = board[r][c];
+            if (p === 0 || getPieceColor(p) !== color) continue;
+            const type = getPieceType(p);
+            if (type === PAWN) {
+                for (const dc of [-1,1]) {
+                    const nr = r+dir, nc = c+dc;
+                    if (!inBounds(nr,nc)) continue;
+                    const t = board[nr][nc];
+                    if (t !== 0 && getPieceColor(t) !== color) {
+                        if (nr === promoRow) { [QUEEN,ROOK,BISHOP,KNIGHT].forEach(q => out.push({from:[r,c],to:[nr,nc],piece:p,captured:t,promotion:q*color})); }
+                        else out.push({from:[r,c],to:[nr,nc],piece:p,captured:t});
+                    }
+                    if (enPassantTarget && enPassantTarget[0] === nr && enPassantTarget[1] === nc) {
+                        out.push({from:[r,c],to:[nr,nc],piece:p,captured:-color*PAWN,enPassant:true});
+                    }
+                }
+                const fr = r+dir;
+                if (inBounds(fr,c) && fr === promoRow && board[fr][c] === 0) {   // 不带吃的升变
+                    [QUEEN,ROOK,BISHOP,KNIGHT].forEach(q => out.push({from:[r,c],to:[fr,c],piece:p,captured:0,promotion:q*color}));
+                }
+            } else if (type === KNIGHT) {
+                for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
+                    const nr=r+dr, nc=c+dc;
+                    if (inBounds(nr,nc) && board[nr][nc] !== 0 && getPieceColor(board[nr][nc]) !== color)
+                        out.push({from:[r,c],to:[nr,nc],piece:p,captured:board[nr][nc]});
+                }
+            } else if (type === KING) {
+                for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+                    if (dr===0 && dc===0) continue;
+                    const nr=r+dr, nc=c+dc;
+                    if (inBounds(nr,nc) && board[nr][nc] !== 0 && getPieceColor(board[nr][nc]) !== color)
+                        out.push({from:[r,c],to:[nr,nc],piece:p,captured:board[nr][nc]});
+                }
+            } else {
+                const dirs = type === BISHOP ? [[-1,-1],[-1,1],[1,-1],[1,1]]
+                           : type === ROOK   ? [[-1,0],[1,0],[0,-1],[0,1]]
+                           : [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+                for (const [dr,dc] of dirs) {
+                    let nr=r+dr, nc=c+dc;
+                    while (inBounds(nr,nc)) {
+                        const t = board[nr][nc];
+                        if (t !== 0) {
+                            if (getPieceColor(t) !== color) out.push({from:[r,c],to:[nr,nc],piece:p,captured:t});
+                            break;
+                        }
+                        nr+=dr; nc+=dc;
+                    }
+                }
+            }
+        }
+        return out;
     }
     function getPieceMoves(board, r, c, color, castlingRights, enPassantTarget) {
         const piece = board[r][c], type = getPieceType(piece), moves = [];
@@ -845,7 +1509,12 @@ const ChessEngine = (() => {
         return nb;
     }
     function getCastlingRights(board, prevRights) {
-        const rights = prevRights ? prevRights.split('').filter(c=>c) : ['K','Q','k','q'];
+        // 注意：空字符串 "" 表示"双方都没有易位权了"，必须与"没传参"区分开。
+        // 旧写法用 prevRights ? ... : [...]，而 "" 在 JS 里是 falsy → 会被当成"没传"，
+        // 于是重置成四方齐全再按盘面推导，导致王走回原位后易位权被"复活"（可走出非法易位）。
+        const rights = (prevRights === null || prevRights === undefined)
+            ? ['K','Q','k','q']
+            : prevRights.split('').filter(c=>c);
         if (board[7][4] !== WHITE*KING) {
             const idxK = rights.indexOf('K'); if (idxK>-1) rights.splice(idxK,1);
             const idxQ = rights.indexOf('Q'); if (idxQ>-1) rights.splice(idxQ,1);
@@ -867,32 +1536,225 @@ const ChessEngine = (() => {
         return null;
     }
 
+    // ===== 局面评估 =====
+    // 单次 64 格扫描收集全部信息，再补算兵型/象对/开放线等结构性加分。
+    // 相比旧版只算子力+位置表，这里让 AI 会：保象对、不爱叠兵孤兵、珍惜通路兵、
+    // 把车往开放线摆、残局时把王往中心靠。
     function evaluate(board) {
-        let score = 0;
-        for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
-            const p = board[r][c];
-            if (p !== 0) {
-                const color = getPieceColor(p), type = getPieceType(p);
+        let score = 0, phaseMat = 0;
+        let bishopsW = 0, bishopsB = 0, wpN = 0, bpN = 0;
+        let nW = 0, nB = 0;              // 非王子力个数（判断对方是否只剩"光王"）
+        let kingW = -1, kingB = -1;
+        const pcW = _pc[0], pcB = _pc[1];
+        pcW.fill(0); pcB.fill(0); _rookMask[0] = 0; _rookMask[1] = 0;
+        for (let f = 0; f < 8; f++) { _pMax[f] = -1; _pMin[f] = 8; }
+
+        for (let r = 0; r < 8; r++) {
+            const row = board[r];
+            for (let c = 0; c < 8; c++) {
+                const p = row[c];
+                if (p === 0) continue;
+                const white = p > 0;
+                const type = white ? p : -p;
+                if (type === KING) { if (white) kingW = r * 8 + c; else kingB = r * 8 + c; continue; }
+                if (white) nW++; else nB++;
                 const table = POSITION_TABLES[type];
-                score += color * (PIECE_VALUES[type] + (color===WHITE ? table[r][c] : table[7-r][c]));
+                score += (white ? 1 : -1) * (PIECE_VALUES[type] + (white ? table[r][c] : table[7 - r][c]));
+                if (type === PAWN) {
+                    if (white) { pcW[c]++; if (wpN < 16) _wpSq[wpN++] = r * 8 + c; if (r > _pMax[c]) _pMax[c] = r; }
+                    else { pcB[c]++; if (bpN < 16) _bpSq[bpN++] = r * 8 + c; if (r < _pMin[c]) _pMin[c] = r; }
+                } else {
+                    phaseMat += PIECE_VALUES[type];
+                    if (type === BISHOP) { if (white) bishopsW++; else bishopsB++; }
+                    else if (type === ROOK) _rookMask[white ? 0 : 1] |= (1 << c);
+                }
             }
         }
-        // 静态王安全惩罚：被对方将军的一方扣分（白视角：白被将扣、黑被将加）。
-        // 低深度(入门/简单档)时评估看不到"将军"威胁，加上后AI会主动回避送你/抓住将军机会。
-        if (isInCheck(board, WHITE)) score -= 60;
-        if (isInCheck(board, BLACK)) score += 60;
+
+        // 王：按中残局选表；黑方镜像
+        const endgame = phaseMat <= PHASE_ENDGAME;
+        const kt = endgame ? KING_ENDGAME_TABLE : KING_TABLE;
+        if (kingW >= 0) { const r = kingW >> 3, c = kingW & 7; score += kt[r][c]; }
+        if (kingB >= 0) { const r = kingB >> 3, c = kingB & 7; score -= kt[7 - r][c]; }
+
+        // 象对
+        if (bishopsW >= 2) score += BISHOP_PAIR_BONUS;
+        if (bishopsB >= 2) score -= BISHOP_PAIR_BONUS;
+
+        // 兵型 + 车的开放线
+        for (let c = 0; c < 8; c++) {
+            const w = pcW[c], b = pcB[c];
+            if (w > 1) score -= DOUBLED_PENALTY * (w - 1);
+            if (b > 1) score += DOUBLED_PENALTY * (b - 1);
+            const wIso = w > 0 && (c === 0 || pcW[c - 1] === 0) && (c === 7 || pcW[c + 1] === 0);
+            const bIso = b > 0 && (c === 0 || pcB[c - 1] === 0) && (c === 7 || pcB[c + 1] === 0);
+            if (wIso) score -= ISOLATED_PENALTY * w;
+            if (bIso) score += ISOLATED_PENALTY * b;
+            if (_rookMask[0] & (1 << c)) score += (w === 0 && b === 0) ? ROOK_OPEN_BONUS : (w === 0 ? ROOK_SEMI_BONUS : 0);
+            if (_rookMask[1] & (1 << c)) score -= (w === 0 && b === 0) ? ROOK_OPEN_BONUS : (b === 0 ? ROOK_SEMI_BONUS : 0);
+        }
+
+        // 通路兵
+        const pBase = endgame ? PASSED_END[0] : PASSED_MID[0];
+        const pStep = endgame ? PASSED_END[1] : PASSED_MID[1];
+        for (let i = 0; i < wpN; i++) {
+            const sq = _wpSq[i], r = sq >> 3, c = sq & 7;
+            let blocked = false;
+            for (let f = c - 1; f <= c + 1; f++) { if (f >= 0 && f < 8 && _pMin[f] < r) { blocked = true; break; } }
+            if (!blocked) { const adv = 6 - r; score += pBase + pStep * (adv > 0 ? adv : 0); }
+        }
+        for (let i = 0; i < bpN; i++) {
+            const sq = _bpSq[i], r = sq >> 3, c = sq & 7;
+            let blocked = false;
+            for (let f = c - 1; f <= c + 1; f++) { if (f >= 0 && f < 8 && _pMax[f] > r) { blocked = true; break; } }
+            if (!blocked) { const adv = r - 1; score -= pBase + pStep * (adv > 0 ? adv : 0); }
+        }
+
+        // 孤王驱赶（残局杀法关键项）：对方只剩光王时，把它的王往边/角赶，并让自己的王贴近。
+        // 没有这一项，AI 拿着双象/马象也只会原地磨蹭，最后被五十步规则判和；
+        // 反过来看，这一项也让"光王防守方"懂得往中心跑（正确的防守思路）。
+        if (kingW >= 0 && kingB >= 0 && (nW === 0 || nB === 0)) {
+            const cmd = (k) => Math.abs((k >> 3) - 3.5) + Math.abs((k & 7) - 3.5);   // 离中心距离 0~7
+            const md  = (a, b) => Math.abs((a >> 3) - (b >> 3)) + Math.abs((a & 7) - (b & 7)); // 王间距
+            if (nB === 0 && nW > 0) {                    // 黑方光王：白方要赶它去边角
+                score += Math.round(cmd(kingB) * 16);
+                score += (14 - md(kingW, kingB)) * 9;
+            } else if (nW === 0 && nB > 0) {             // 白方光王：黑方要赶它去边角
+                score -= Math.round(cmd(kingW) * 16);
+                score -= (14 - md(kingB, kingW)) * 9;
+            }
+        }
+
+        // 将军惩罚：被将军的一方扣分（用已扫到的王位，省掉一次全盘找王）
+        if (kingW >= 0 && isSquareAttacked(board, kingW >> 3, kingW & 7, BLACK)) score -= 60;
+        if (kingB >= 0 && isSquareAttacked(board, kingB >> 3, kingB & 7, WHITE)) score += 60;
         return score;
     }
 
+    // ===== 局面哈希（Zobrist）=====
+    // 旧实现每个搜索节点都要把 64 格拼成字符串，是搜索里最贵的常数开销。
+    // 改为数字哈希：两个独立 32 位累加器各取低 26 位拼成 52 位安全整数（碰撞概率对本文搜索规模可忽略）。
+    const ZOBRIST = (() => {
+        let seed = 0x9E3779B9;
+        const rnd = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed >>> 0; };
+        const p1 = [], p2 = [];
+        for (let ci = 0; ci < 2; ci++) {
+            p1[ci] = {}; p2[ci] = {};
+            for (let t = 1; t <= 6; t++) {
+                const a1 = [], a2 = [];
+                for (let i = 0; i < 64; i++) { a1.push(rnd()); a2.push(rnd()); }
+                p1[ci][t] = a1; p2[ci][t] = a2;
+            }
+        }
+        const c1 = [rnd(), rnd(), rnd(), rnd()], c2 = [rnd(), rnd(), rnd(), rnd()];
+        const e1 = [], e2 = [];
+        for (let i = 0; i < 8; i++) { e1.push(rnd()); e2.push(rnd()); }
+        return { p1, p2, c1, c2, e1, e2, t1: rnd(), t2: rnd() };
+    })();
+
+    // 说明：哈希分"全量"与"增量"两种。
+    //   全量 fullHash：只在进入搜索/载入存档/三次重复判定时用（O(64)）。
+    //   增量 hashAfterMove：搜索里每个节点用（O(1)）—— 只 XOR 掉变化的棋子与状态位。
+    function addStateHash(h1, h2, castling, ep, turn) {
+        if (castling) {
+            if (castling.indexOf('K') >= 0) { h1 ^= ZOBRIST.c1[0]; h2 ^= ZOBRIST.c2[0]; }
+            if (castling.indexOf('Q') >= 0) { h1 ^= ZOBRIST.c1[1]; h2 ^= ZOBRIST.c2[1]; }
+            if (castling.indexOf('k') >= 0) { h1 ^= ZOBRIST.c1[2]; h2 ^= ZOBRIST.c2[2]; }
+            if (castling.indexOf('q') >= 0) { h1 ^= ZOBRIST.c1[3]; h2 ^= ZOBRIST.c2[3]; }
+        }
+        if (ep) { h1 ^= ZOBRIST.e1[ep[1]]; h2 ^= ZOBRIST.e2[ep[1]]; }
+        if (turn === BLACK) { h1 ^= ZOBRIST.t1; h2 ^= ZOBRIST.t2; }
+        return [h1 >>> 0, h2 >>> 0];
+    }
+
+    function fullHash(board, castling, ep, turn) {
+        let h1 = 0, h2 = 0;
+        for (let r = 0; r < 8; r++) {
+            const row = board[r];
+            for (let c = 0; c < 8; c++) {
+                const p = row[c];
+                if (p !== 0) {
+                    const ci = p > 0 ? 0 : 1, t = p > 0 ? p : -p, sq = r * 8 + c;
+                    h1 ^= ZOBRIST.p1[ci][t][sq];
+                    h2 ^= ZOBRIST.p2[ci][t][sq];
+                }
+            }
+        }
+        return addStateHash(h1, h2, castling, ep, turn);
+    }
+
+    // 两个累加器各取低 26 位拼成 52 位安全整数，作为转置表键
+    function hashKey(h1, h2) { return (h1 >>> 6) * 134217728 + (h2 >>> 6); }
+
     function boardHash(board, castling, ep, turn) {
-        let s = "";
-        for (let r=0;r<8;r++) s += board[r].join(",")+"|";
-        s += castling+"|"+(ep?ep.join(","):"_")+"|"+turn;
-        return s;
+        const h = fullHash(board, castling, ep, turn);
+        return hashKey(h[0], h[1]);
     }
+
+    const _CASTLE_IDX = { K: 0, Q: 1, k: 2, q: 3 };
+    // 增量更新：棋盘局面已由 makeMove 得到 nb，这里只维护哈希
+    function hashAfterMove(h1, h2, move, prevRights, newRights, prevEp, newEp) {
+        const fr = move.from[0], fc = move.from[1], tr = move.to[0], tc = move.to[1];
+        const white = move.piece > 0;
+        const ci = white ? 0 : 1;
+        const t = white ? move.piece : -move.piece;
+        const fsq = fr * 8 + fc, tsq = tr * 8 + tc;
+        // 起点棋子离开
+        h1 ^= ZOBRIST.p1[ci][t][fsq]; h2 ^= ZOBRIST.p2[ci][t][fsq];
+        // 终点落子（升变则落的是新子）
+        const landType = move.promotion ? (move.promotion > 0 ? move.promotion : -move.promotion) : t;
+        h1 ^= ZOBRIST.p1[ci][landType][tsq]; h2 ^= ZOBRIST.p2[ci][landType][tsq];
+        // 被吃的子
+        if (move.captured) {
+            const vw = move.captured > 0;
+            const vci = vw ? 0 : 1, vt = vw ? move.captured : -move.captured;
+            // 吃过路兵时被吃的兵不在终点格，而在起点行、终点列
+            const csq = move.enPassant ? (fr * 8 + tc) : tsq;
+            h1 ^= ZOBRIST.p1[vci][vt][csq]; h2 ^= ZOBRIST.p2[vci][vt][csq];
+        }
+        // 易位时车也移动了
+        if (move.castling) {
+            const row = white ? 7 : 0;
+            const rf = move.castling === 'K' ? 7 : 0;
+            const rt = move.castling === 'K' ? 5 : 3;
+            h1 ^= ZOBRIST.p1[ci][ROOK][row * 8 + rf]; h2 ^= ZOBRIST.p2[ci][ROOK][row * 8 + rf];
+            h1 ^= ZOBRIST.p1[ci][ROOK][row * 8 + rt]; h2 ^= ZOBRIST.p2[ci][ROOK][row * 8 + rt];
+        }
+        // 易位权：只可能减少，把失去的那几项 XOR 掉
+        if (prevRights) {
+            for (let i = 0; i < 4; i++) {
+                const ch = 'KQkq'[i];
+                if (prevRights.indexOf(ch) >= 0 && (!newRights || newRights.indexOf(ch) < 0)) {
+                    h1 ^= ZOBRIST.c1[i]; h2 ^= ZOBRIST.c2[i];
+                }
+            }
+        }
+        // 过路兵目标格
+        if (prevEp) { h1 ^= ZOBRIST.e1[prevEp[1]]; h2 ^= ZOBRIST.e2[prevEp[1]]; }
+        if (newEp) { h1 ^= ZOBRIST.e1[newEp[1]]; h2 ^= ZOBRIST.e2[newEp[1]]; }
+        // 换手
+        h1 ^= ZOBRIST.t1; h2 ^= ZOBRIST.t2;
+        return [h1 >>> 0, h2 >>> 0];
+    }
+
     function positionKey(board, color, castlingRights, enPassantTarget) {
-        return boardHash(board, castlingRights, enPassantTarget, color);
+        // 三次重复判定：仅当"确实存在能吃这个兵的着法"时才把吃过路兵目标计入签名（标准做法）。
+        let ep = enPassantTarget;
+        if (ep) {
+            const dir = color === WHITE ? -1 : 1;      // 该方兵的前进方向
+            const fromRow = ep[0] - dir;               // 能执行吃过路兵的己方兵所在行
+            let can = false;
+            for (const dc of [-1, 1]) {
+                const cc = ep[1] + dc;
+                if (inBounds(fromRow, cc) && board[fromRow][cc] === color * PAWN) { can = true; break; }
+            }
+            if (!can) ep = null;
+        }
+        return boardHash(board, castlingRights, ep, color);
     }
+
+    // ===== 着法排序 =====
+    function moveKey(m) { return ((m.from[0] * 8 + m.from[1]) << 6) | (m.to[0] * 8 + m.to[1]); }
 
     function orderMoves(moves, board) {
         return moves.sort((a,b) => {
@@ -902,151 +1764,302 @@ const ChessEngine = (() => {
         });
     }
 
-    function minimax(board, depth, alpha, beta, maximizing, color, castlingRights, enPassantTarget, transTable, startTime, timeLimit, abortSignal) {
-        if (abortSignal && abortSignal.aborted) return Number.POSITIVE_INFINITY;  // 哨兵：搜索未完成，顶层忽略此着法
-        if (Date.now() - startTime > timeLimit) return Number.POSITIVE_INFINITY;  // 哨兵：搜索未完成
-
-        const hashKey = boardHash(board, castlingRights, enPassantTarget, color) + '|' + depth;
-        if (transTable[hashKey] !== undefined) return transTable[hashKey];
-
-        const moves = generateMoves(board, color, castlingRights, enPassantTarget);
-        const legalMoves = moves.filter(m => !isInCheck(makeMove(board,m), color));
-        if (legalMoves.length === 0) {
-            const val = isInCheck(board,color) ? (color===WHITE?-100000+depth:100000-depth) : 0;
-            transTable[hashKey] = val;
-            return val;
+    // 着法排序分：转置表最佳着法 > 吃子(MVV-LVA) > 升变 > killer > history
+    function scoreMove(m, ply, killers, history, color, ttMove) {
+        const key = moveKey(m);
+        if (ttMove !== null && ttMove !== undefined && key === ttMove) return 1000000;
+        if (m.captured !== 0 || m.enPassant) {
+            const victim = m.enPassant ? PAWN : Math.abs(m.captured);
+            return 100000 + (PIECE_VALUES[victim] || 0) * 10 - Math.abs(m.piece);
         }
-        if (depth === 0) {
-            const val = evaluate(board);
-            transTable[hashKey] = val;
-            return val;
-        }
-
-        const orderedMoves = orderMoves(legalMoves, board);
-
-        if (maximizing) {
-            let maxEval = -Infinity;
-            let complete = true;
-            for (const move of orderedMoves) {
-                const nb = makeMove(board, move);
-                const nc = getCastlingRights(nb, castlingRights);
-                const nep = getEnPassantTarget(nb, move);
-                const eval_ = minimax(nb, depth-1, alpha, beta, false, -color, nc, nep, transTable, startTime, timeLimit, abortSignal);
-                maxEval = Math.max(maxEval, eval_);
-                alpha = Math.max(alpha, eval_);
-                if (beta <= alpha || (abortSignal && abortSignal.aborted) || Date.now() - startTime > timeLimit) { complete = false; break; }
-            }
-            if (complete) transTable[hashKey] = maxEval;
-            return maxEval;
-        } else {
-            let minEval = Infinity;
-            let complete = true;
-            for (const move of orderedMoves) {
-                const nb = makeMove(board, move);
-                const nc = getCastlingRights(nb, castlingRights);
-                const nep = getEnPassantTarget(nb, move);
-                const eval_ = minimax(nb, depth-1, alpha, beta, true, -color, nc, nep, transTable, startTime, timeLimit, abortSignal);
-                minEval = Math.min(minEval, eval_);
-                beta = Math.min(beta, eval_);
-                if (beta <= alpha || (abortSignal && abortSignal.aborted) || Date.now() - startTime > timeLimit) { complete = false; break; }
-            }
-            if (complete) transTable[hashKey] = minEval;
-            return minEval;
-        }
+        if (m.promotion) return 90000 + (PIECE_VALUES[Math.abs(m.promotion)] || 0);
+        const k = killers[ply];
+        if (k && (k[0] === key || k[1] === key)) return 80000;
+        return history[color === WHITE ? 0 : 1][key] || 0;
     }
 
-    function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal, sanHistory) {
-        // 深度下限 2：所有档位都至少能看到对手一步回吃，杜绝"入门档用后去换个兵"这类低级送子。
-        // 难度差异靠"深度 + 可接受着法质量(margin)"共同拉开，而不是靠允许 AI 走坏棋。
-        const depthMap = {1:2, 2:2, 3:3, 4:4};
-        const marginMap = {1:140, 2:60, 3:20, 4:0};   // 允许比"当前最佳着法"差多少分(1个兵=100分)
-        const depth = depthMap[level] || 2;
-        const margin = marginMap[level] !== undefined ? marginMap[level] : 0;
-        const moves = generateMoves(board, color, castlingRights, enPassantTarget);
-        const legalMoves = moves.filter(m => !isInCheck(makeMove(board,m), color));
-        if (legalMoves.length === 0) return null;
+    // 记录造成剪枝的安静着法(killer + history)，下次同层优先尝试
+    function recordCutoff(m, ply, killers, history, color, depth) {
+        if (m.captured !== 0 || m.enPassant || m.promotion) return;   // 只记录安静着法
+        const key = moveKey(m);
+        const k = killers[ply] || (killers[ply] = [-1, -1]);
+        if (k[0] !== key) { k[1] = k[0]; k[0] = key; }
+        const h = history[color === WHITE ? 0 : 1];
+        if (h[key] < 60000) h[key] += depth * depth;   // 封顶，避免盖过 killer 优先级
+    }
 
-        // 开局库：命中且在合法着法内则直接采用（正常开局AI走"正规"开局，增强棋感与变化）
+    // ===== 静态搜索（quiescence）=====
+    // 搜到深度上限就静态评估会"算到一半就下结论"（地平线效应）：一串兑换看着赚、其实亏。
+    // 这里在叶子节点继续把吃子/升变（被将军时是全部解将着法）搜到底。仅困难/大师档启用，入门/简单保持原样。
+    const MAX_Q_DEPTH = 8;
+    const STOP = Number.POSITIVE_INFINITY;          // 搜索被中断的哨兵值（顶层会据此回退到上一层结果）
+    const TT_EXACT = 0, TT_LOWER = 1, TT_UPPER = 2; // 转置表条目类型
+    function quiesce(board, alpha, beta, color, castlingRights, enPassantTarget, ctx, qdepth, h1, h2) {
+        if (ctx.abortSignal && ctx.abortSignal.aborted) return STOP;
+        if ((++ctx.nodes & 511) === 0 && Date.now() - ctx.startTime > ctx.timeLimit) return STOP;
+
+        const maximizing = (color === WHITE);
+        const inCheck = isInCheck(board, color);
+        const staticEval = inCheck ? 0 : evaluate(board);   // 评估较贵，每个节点只算一次
+        if (!inCheck) {
+            if (maximizing) {
+                if (staticEval >= beta) return staticEval;
+                if (staticEval > alpha) alpha = staticEval;
+            } else {
+                if (staticEval <= alpha) return staticEval;
+                if (staticEval < beta) beta = staticEval;
+            }
+            if (qdepth >= MAX_Q_DEPTH) return staticEval;
+        }
+
+        // 被将军时必须把所有解将着法算完；否则只看吃子/升变
+        const raw = inCheck ? generateMoves(board, color, castlingRights, enPassantTarget)
+                            : generateCaptures(board, color, enPassantTarget);
+        const kids = [];
+        for (let i = 0; i < raw.length; i++) {
+            const m = raw[i];
+            const nb = makeMove(board, m);              // 每个着法只克隆一次棋盘
+            if (isInCheck(nb, color)) continue;
+            kids.push({ m: m, nb: nb, nc: getCastlingRights(nb, castlingRights), nep: getEnPassantTarget(nb, m),
+                        sc: (m.captured ? (PIECE_VALUES[m.captured > 0 ? m.captured : -m.captured] || 0) : 0)
+                            - (m.piece > 0 ? m.piece : -m.piece) + (m.promotion ? 800 : 0) });
+        }
+        if (kids.length === 0) {
+            if (inCheck) return maximizing ? (-100000 + qdepth) : (100000 - qdepth);
+            return staticEval;
+        }
+        kids.sort((a, b) => b.sc - a.sc);
+
+        let best = inCheck ? (maximizing ? -Infinity : Infinity) : staticEval;
+        for (let i = 0; i < kids.length; i++) {
+            const k = kids[i];
+            const nh = hashAfterMove(h1, h2, k.m, castlingRights, k.nc, enPassantTarget, k.nep);
+            const v = quiesce(k.nb, alpha, beta, -color, k.nc, k.nep, ctx, qdepth + 1, nh[0], nh[1]);
+            if (v === STOP) return v;
+            if (maximizing) { if (v > best) best = v; if (best > alpha) alpha = best; }
+            else { if (v < best) best = v; if (best < beta) beta = best; }
+            if (alpha >= beta) break;
+        }
+        return best;
+    }
+
+    function minimax(board, depth, alpha, beta, color, castlingRights, enPassantTarget, ctx, ply, h1, h2) {
+        if (ctx.abortSignal && ctx.abortSignal.aborted) return STOP;
+        if ((++ctx.nodes & 511) === 0 && Date.now() - ctx.startTime > ctx.timeLimit) return STOP;
+
+        const maximizing = (color === WHITE);
+        const key = hashKey(h1, h2);
+        const tt = ctx.tt, killers = ctx.killers, history = ctx.history;
+        let ttMove = null;
+        const entry = tt.get(key);
+        if (entry !== undefined) {
+            if (entry.depth >= depth) {
+                // 命中：精确值直接用；下界/上界只在能完成剪枝时才用
+                if (entry.flag === TT_EXACT) return entry.score;
+                if (entry.flag === TT_LOWER && entry.score >= beta) return entry.score;
+                if (entry.flag === TT_UPPER && entry.score <= alpha) return entry.score;
+            }
+            ttMove = entry.best;
+        }
+
+        // 一次性生成"合法着的子局面"，后面排序/递归都不再重复 makeMove
+        const raw = generateMoves(board, color, castlingRights, enPassantTarget);
+        const kids = [];
+        for (let i = 0; i < raw.length; i++) {
+            const m = raw[i];
+            const nb = makeMove(board, m);
+            if (isInCheck(nb, color)) continue;
+            kids.push({ m: m, nb: nb, nc: getCastlingRights(nb, castlingRights), nep: getEnPassantTarget(nb, m), s: 0 });
+        }
+        if (kids.length === 0) {
+            const val = isInCheck(board, color) ? (maximizing ? (-100000 + ply) : (100000 - ply)) : 0;
+            tt.set(key, { depth: depth, score: val, best: null, flag: TT_EXACT });
+            return val;
+        }
+        if (depth <= 0) {
+            return ctx.useQ ? quiesce(board, alpha, beta, color, castlingRights, enPassantTarget, ctx, 0, h1, h2)
+                            : evaluate(board);
+        }
+
+        // 排序：转置表最佳着法 > 吃子(MVV-LVA) > 升变 > killer > history
+        for (let i = 0; i < kids.length; i++) kids[i].s = scoreMove(kids[i].m, ply, killers, history, color, ttMove);
+        kids.sort((a, b) => b.s - a.s);
+
+        const origAlpha = alpha, origBeta = beta;
+        let best = maximizing ? -Infinity : Infinity, bestMove = null;
+        for (let i = 0; i < kids.length; i++) {
+            const k = kids[i];
+            const nh = hashAfterMove(h1, h2, k.m, castlingRights, k.nc, enPassantTarget, k.nep);
+            const v = minimax(k.nb, depth - 1, alpha, beta, -color, k.nc, k.nep, ctx, ply + 1, nh[0], nh[1]);
+            if (v === STOP) return STOP;
+            if (maximizing) { if (v > best) { best = v; bestMove = k.m; } if (v > alpha) alpha = v; }
+            else { if (v < best) { best = v; bestMove = k.m; } if (v < beta) beta = v; }
+            if (alpha >= beta) { recordCutoff(k.m, ply, killers, history, color, depth); break; }
+        }
+        // 边界类型：超出窗口的记下界/上界，窗口内的才是精确值
+        const flag = best <= origAlpha ? TT_UPPER : (best >= origBeta ? TT_LOWER : TT_EXACT);
+        tt.set(key, { depth: depth, score: best, best: bestMove, flag: flag });
+        return best;
+    }
+
+    let lastNodes = 0;   // 上一次搜索的节点数（供自测/性能对比用）
+    function getLastNodes() { return lastNodes; }
+
+    function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal, sanHistory) {
+        // 迭代加深：从 1 层逐层加深，只采用"完整搜完"的那一层结果。
+        //  ① 时间不够时自动回退到上一层 → 绝不会出现"返回空着法导致 AI 卡住"；
+        //  ② 上一层的最佳着法用于下一层排序 → 剪枝更狠。
+        // 难度差异 = 深度上限 + 时间预算 + 可接受着法质量(margin)，弱化不靠"算不准"。
+        const maxDepthMap = {1:2, 2:2, 3:4, 4:6};
+        const marginMap   = {1:140, 2:60, 3:20, 4:0};
+        const budgetMap   = {1:300, 2:500, 3:900, 4:2000};
+        const maxDepth = maxDepthMap[level] || 2;
+        const margin = marginMap[level] !== undefined ? marginMap[level] : 0;
+        const budget = budgetMap[level] || 800;
+
+        // 根着法连同子局面一次算好（每个着法只克隆一次棋盘）
+        const h = fullHash(board, castlingRights, enPassantTarget, color);
+        const raw = generateMoves(board, color, castlingRights, enPassantTarget);
+        const roots = [];
+        for (let i = 0; i < raw.length; i++) {
+            const m = raw[i];
+            const nb = makeMove(board, m);
+            if (isInCheck(nb, color)) continue;
+            roots.push({ m: m, nb: nb, nc: getCastlingRights(nb, castlingRights), nep: getEnPassantTarget(nb, m), score: 0 });
+        }
+        if (roots.length === 0) return null;
+
+        // 开局库：命中且仍合法则照书走（正规开局 + 增加变化）
         const bookMove = findOpeningBookMove(sanHistory);
         if (bookMove) {
-            const matched = legalMoves.find(m => m.from[0]===bookMove.from[0] && m.from[1]===bookMove.from[1]
-                                             && m.to[0]===bookMove.to[0] && m.to[1]===bookMove.to[1]);
-            if (matched) return matched;
+            const matched = roots.find(k => k.m.from[0] === bookMove.from[0] && k.m.from[1] === bookMove.from[1]
+                                         && k.m.to[0] === bookMove.to[0] && k.m.to[1] === bookMove.to[1]);
+            if (matched) return matched.m;
         }
 
-        const transTable = {};
-        const startTime = Date.now();
-        const timeLimit = 5000;
-        let scored = [];
-        for (let mv of legalMoves) {
-            if (abortSignal && abortSignal.aborted) break;
-            const nb = makeMove(board, mv);
-            const nc = getCastlingRights(nb, castlingRights);
-            const nep = getEnPassantTarget(nb, mv);
-            const val = minimax(nb, depth-1, -Infinity, Infinity, color===BLACK, -color, nc, nep, transTable, startTime, timeLimit, abortSignal);
-            if (val === Number.POSITIVE_INFINITY) { break; }  // 搜索被截断，放弃该着法及其后续，不作部分评分
-            scored.push({move:mv, score: val});
-            if (Date.now() - startTime > timeLimit) break;
+        const ctx = { tt: new Map(), killers: [], history: [new Int32Array(4096), new Int32Array(4096)],
+                      startTime: Date.now(), timeLimit: budget, abortSignal: abortSignal,
+                      useQ: level >= 3, nodes: 0 };
+        const maximizing = (color === WHITE);
+        const mvv = m => m.captured ? (PIECE_VALUES[m.captured > 0 ? m.captured : -m.captured] || 0)
+                                      - (m.piece > 0 ? m.piece : -m.piece) : 0;
+        roots.sort((a, b) => mvv(b.m) - mvv(a.m));
+
+        let bestMove = roots[0].m, bestScore = 0, completeScores = null;
+        for (let d = 1; d <= maxDepth; d++) {
+            let localBest = null, localScore = maximizing ? -Infinity : Infinity;
+            const iter = [];
+            let aborted = false;
+            for (let i = 0; i < roots.length; i++) {
+                const k = roots[i];
+                const nh = hashAfterMove(h[0], h[1], k.m, castlingRights, k.nc, enPassantTarget, k.nep);
+                const v = minimax(k.nb, d - 1, -Infinity, Infinity, -color, k.nc, k.nep, ctx, 1, nh[0], nh[1]);
+                if (v === STOP) { aborted = true; break; }
+                k.score = v;
+                iter.push(k);
+                if (maximizing ? v > localScore : v < localScore) { localScore = v; localBest = k.m; }
+            }
+            if (aborted) break;                                  // 本层未搜完 → 丢弃，沿用上一层结果
+            bestMove = localBest; bestScore = localScore;
+            // 注意：必须"拷贝一份"分数快照。ties 直接引用 iter 里的对象的话，
+            // 下一层迭代会就地覆写这些对象的 score，若该层又被超时截断，
+            // 就会出现"bestScore 是上一层的值、scored 里的分数却是本层的"这种错位，
+            // 导致 margin 池过滤为空 → pool[0] 未定义（实测崩溃点）。
+            completeScores = iter.map(k => ({ m: k.m, score: k.score }));
+            roots.sort((a, b) => maximizing ? b.score - a.score : a.score - b.score);
+            if (Date.now() - ctx.startTime > budget * 0.5) break; // 剩余时间不足以再深一层就收手
         }
-        if (scored.length === 0) return null;
-        // 按"对自己有利"排序(白取大分、黑取小分)，只保留与最佳着法差距不超过 margin 的着法：
-        // 这一步天然排除了送后/送子这类大漏着 —— 弱化只发生在"同样说得通"的着法之间。
-        scored.sort((a,b) => color===WHITE ? b.score - a.score : a.score - b.score);
-        const bestScore = scored[0].score;
+        lastNodes = ctx.nodes;
+
+        // 弱化档：只在"与最佳着法差距 ≤ margin"的着法里抽签，既保留变化又绝不送子
+        const scored = completeScores || [{ m: bestMove, score: bestScore }];
         const pool = scored.filter(s => Math.abs(s.score - bestScore) <= margin);
-        // 池内掷骰：轻度偏向前排(更优)的着法，既保留变化又不下傻棋
+        if (pool.length === 0) return bestMove;    // 兜底：任何情况下都必须给出一着（绝不返回空）
         const pick = Math.min(pool.length - 1, Math.floor(Math.pow(Math.random(), 1.6) * pool.length));
-        return pool[pick].move;
+        return pool[pick].m;
     }
 
     return {
         WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
         createInitialBoard, generateMoves, makeMove, getCastlingRights,
-        getEnPassantTarget, isInCheck, findKing, findBestMove, getPieceType, getPieceColor, evaluate,
+        getEnPassantTarget, isInCheck, findKing, findBestMove, getPieceType, getPieceColor, evaluate, getLastNodes, hashAfterMove, fullHash, hashKey,
         positionKey
     };
 })();
 
 // ===================== 音效系统 =====================
+// 全部用 Web Audio 现场合成（不引入音频文件，保持单文件离线可用）。
+// 3.8.0 重做音色：每次发音 = "瞬态击打层 + 主体音层"，统一走一条 master gain。
+// 相比原来单音振荡器，落子更像"木头敲击"、吃子更沉、将军有明确的警示感，
+// 且起音/衰减包络分开，不会出现生硬的"啪"一下断掉。
 const SoundManager = (() => {
-    let audioCtx = null;
-    const enabled = true;
+    let audioCtx = null, master = null;
 
     function initAudio() {
         if (!audioCtx) {
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            } catch (e) {
-                audioCtx = null;
-                return;
-            }
+                master = audioCtx.createGain();
+                master.gain.value = 0.9;
+                master.connect(audioCtx.destination);
+            } catch (e) { audioCtx = null; return false; }
         }
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        return true;
     }
-    
-    function playTone(freq, duration, type='sine', volume=0.15) {
-        if (!enabled) return;
-        initAudio();
-        if (!audioCtx) return;
+
+    // 主体音层：快速起音(6ms) + 指数衰减，可选滑音
+    function tone(freq, dur, type, vol, delay, endFreq) {
+        if (!audioCtx || !master) return;
+        const t0 = audioCtx.currentTime + (delay || 0);
         const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        const g = audioCtx.createGain();
         osc.type = type;
-        osc.frequency.value = freq;
-        gain.gain.value = volume;
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
+        osc.frequency.setValueAtTime(freq, t0);
+        if (endFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t0 + dur);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(g); g.connect(master);
+        osc.start(t0); osc.stop(t0 + dur + 0.02);
     }
-    
-    function playMove() { playTone(500, 0.08, 'triangle', 0.12); }
-    function playCapture() { playTone(300, 0.1, 'sawtooth', 0.15); setTimeout(() => playTone(200, 0.08, 'sawtooth', 0.1), 50); }
-    function playCheck() { playTone(800, 0.15, 'square', 0.12); }
-    function playGameEnd() { playTone(600, 0.15, 'sine', 0.2); setTimeout(() => playTone(500, 0.15, 'sine', 0.2), 150); setTimeout(() => playTone(400, 0.2, 'sine', 0.2), 300); }
-    
+
+    // 瞬态层：一小段衰减噪声，给"撞击硬物"的质感（高通滤掉低频轰鸣）
+    function knock(dur, vol, delay, hp) {
+        if (!audioCtx || !master) return;
+        const t0 = audioCtx.currentTime + (delay || 0);
+        const len = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+        const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4);
+        const s = audioCtx.createBufferSource(); s.buffer = buf;
+        const f = audioCtx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 1200;
+        const g = audioCtx.createGain(); g.gain.value = vol;
+        s.connect(f); f.connect(g); g.connect(master);
+        s.start(t0);
+    }
+
+    function playMove() {          // 落子：木质感的一记轻响
+        if (!initAudio()) return;
+        tone(330, 0.09, 'triangle', 0.15, 0, 205);
+        knock(0.035, 0.10, 0, 1500);
+    }
+    function playCapture() {       // 吃子：更沉、带一点碰撞碎响
+        if (!initAudio()) return;
+        tone(225, 0.14, 'triangle', 0.19, 0, 118);
+        knock(0.065, 0.15, 0, 900);
+        tone(1560, 0.03, 'square', 0.04, 0.004);
+    }
+    function playCheck() {         // 将军：两声上行的短促警示音
+        if (!initAudio()) return;
+        tone(740, 0.10, 'square', 0.09);
+        tone(988, 0.17, 'square', 0.10, 0.10);
+    }
+    function playGameEnd() {       // 终局：C-E-G-C 上行琶音
+        if (!initAudio()) return;
+        [[523,0],[659,0.13],[784,0.26],[1047,0.40]].forEach(([f, d]) => tone(f, 0.22, 'sine', 0.15, d));
+    }
+
     return { playMove, playCapture, playCheck, playGameEnd };
 })();
 
@@ -1056,6 +2069,83 @@ const PIECE_SYMBOLS = {
     [-1]:'♟', [-2]:'♞', [-3]:'♝', [-4]:'♜', [-5]:'♛', [-6]:'♚'
 };
 const FILES = ['a','b','c','d','e','f','g','h'];
+
+// ===================== 练习模式：残局题库 =====================
+// 每题 = 局面 + 任务说明 + 步数上限（按"玩家自己的步数"计）。
+// 局面写法 [棋子, 行, 列]：行 0 = 第 8 横线（黑方底线），列 0 = a 线；
+// 大写=白方，小写=黑方（K王 Q后 R车 B象 N马 P兵）。
+// 题目位置都用引擎自对弈验证过：进攻方在上述步数上限内确实能达成目标。
+const PRACTICE_POSITIONS = [
+    // ===== 组一 · 基本杀法（把对方光王杀掉的基本功）=====
+    { group: '基本杀法', name: '后杀单王', player: 'w', limit: 24, win: 'mate',
+      goal: '用王和皇后把黑王逼到边线或角落将杀。要点：皇后先把王赶向边线，再把自己的王走近支援（别只让皇后单打独斗）。',
+      pieces: [['K',7,4],['Q',7,3],['k',0,4]] },
+    { group: '基本杀法', name: '双车杀单王', player: 'w', limit: 10, win: 'mate',
+      goal: '双车"爬梯子"：一辆车封锁，另一辆车将军，交替推进把黑王赶到边线将杀。要点：两车保持互相保护的距离。',
+      pieces: [['K',7,4],['R',7,0],['R',7,7],['k',0,4]] },
+    { group: '基本杀法', name: '单车杀单王', player: 'w', limit: 30, win: 'mate',
+      goal: '单车将杀单王：必须用自己的王配合。要点：先把两王顶成"对王"，逼对方王退到边线，再用车将军。',
+      pieces: [['K',7,4],['R',7,0],['k',0,4]] },
+    { group: '基本杀法', name: '双象杀单王', player: 'w', limit: 40, win: 'mate',
+      goal: '双象杀单王：两象控制不同颜色的格子，配合自己的王把对方王一步步挤到角落。要点：王的推进比象更重要。',
+      pieces: [['K',7,4],['B',7,2],['B',7,5],['k',0,4]] },
+    { group: '基本杀法', name: '马象杀单王·最难', player: 'w', limit: 45, win: 'mate',
+      goal: '马象杀单王——公认最难的基本杀法，新手可以先跳过。要点：把对方王逼到与象同色的角落再动手，全程慢慢缩小包围圈。',
+      pieces: [['K',7,4],['N',7,1],['B',7,2],['k',0,4]] },
+
+    // ===== 组二 · 一步杀（每题的答案都经过将杀求解器验证）=====
+    { group: '一步杀', name: '底线杀', player: 'w', limit: 1, win: 'mate',
+      goal: '白方先行，一步将杀。提示：对方王被自己的三个兵堵在家里，看看哪条线是你自己的。',
+      pieces: [['R',7,0],['K',7,6],['k',0,6],['p',1,5],['p',1,6],['p',1,7]] },
+    { group: '一步杀', name: '皇后贴身杀', player: 'w', limit: 1, win: 'mate',
+      goal: '白方先行，一步将杀。提示：皇后走到对方王身边，只要它自己是被王保护的，对方就不敢吃。',
+      pieces: [['K',2,5],['Q',2,7],['k',0,7],['p',1,7]] },
+    { group: '一步杀', name: '把王逼进角落', player: 'w', limit: 1, win: 'mate',
+      goal: '白方先行，一步将杀。提示：对方的王已经在自己角落里了。',
+      pieces: [['K',1,2],['Q',7,1],['k',0,0]] },
+    { group: '一步杀', name: '车贴底线', player: 'w', limit: 1, win: 'mate',
+      goal: '白方先行，一步将杀。提示：和王配合的车，威力比单独的车大得多。',
+      pieces: [['K',2,5],['R',7,0],['k',0,7],['p',1,7]] },
+
+    // ===== 组三 · 两步杀 =====
+    { group: '两步杀', name: '双车阶梯', player: 'w', limit: 2, win: 'mate',
+      goal: '白方先行，两步之内将杀（对方任何应法都挡不住）。要点：先用一辆车把对方的第 7 横线封住（不将军），再上另一辆。',
+      pieces: [['K',7,2],['R',7,0],['R',7,1],['k',0,7]] },
+    { group: '两步杀', name: '王后配合', player: 'w', limit: 2, win: 'mate',
+      goal: '白方先行，两步之内将杀。要点：先走一步"把对方王的活动范围再缩小一格"的棋，不要急着将军。',
+      pieces: [['K',3,5],['Q',3,2],['k',0,3]] },
+    { group: '两步杀', name: '皇后压缩空间', player: 'w', limit: 2, win: 'mate',
+      goal: '白方先行，两步之内将杀。要点：对方王已经被挤到边线上，先想哪一步能让它连横向的格子也失去。',
+      pieces: [['K',5,4],['Q',4,2],['k',5,7]] },
+    { group: '两步杀', name: '车与王的配合', player: 'w', limit: 2, win: 'mate',
+      goal: '白方先行，两步之内将杀。要点：单靠车不行，得先把王走近——但两步之内只有一步是"走近"，另一步必须是将杀。',
+      pieces: [['K',7,4],['R',1,2],['k',7,7]] },
+    { group: '两步杀', name: '后与车的双重威胁', player: 'w', limit: 2, win: 'mate',
+      goal: '白方先行，两步之内将杀。要点：后和车各控制一条线，先走一步制造两个威胁，对方只能挡一个。',
+      pieces: [['K',3,4],['Q',6,5],['R',2,0],['k',0,4]] },
+
+    // ===== 组四 · 三步杀 =====
+    { group: '三步杀', name: '三步收网', player: 'w', limit: 3, win: 'mate',
+      goal: '白方先行，三步之内将杀。要点：先把对方的王压到只剩下一条退路，再收紧。',
+      pieces: [['K',5,1],['Q',0,0],['k',7,4]] },
+    { group: '三步杀', name: '三步压缩', player: 'w', limit: 3, win: 'mate',
+      goal: '白方先行，三步之内将杀。要点：每一步都要让对方的王少一个格子，别浪费将军。',
+      pieces: [['K',4,3],['Q',5,3],['k',7,2]] },
+
+    // ===== 组五 · 兵与车兵残局 =====
+    { group: '兵与车兵残局', name: '王兵升变·关键格', player: 'w', limit: 12, win: 'promote',
+      goal: '把一个兵送到最后一排升变。要点：王走在兵前面开路，占住关键格之后兵就能一路到底。',
+      pieces: [['K',2,4],['P',3,4],['k',0,4]] },
+    { group: '兵与车兵残局', name: '连兵升变', player: 'w', limit: 20, win: 'promote',
+      goal: '两个连在一起的通路兵一起往前推——对方的单王挡不住两个。要点：让两个兵互相保护，王在旁边护航。',
+      pieces: [['K',5,3],['P',4,1],['P',4,2],['k',3,5]] },
+    { group: '兵与车兵残局', name: '远方通路兵', player: 'w', limit: 20, win: 'promote',
+      goal: '远处那个兵就是胜负手：对方的王来不及追，你的王往另一边走牵扯它。要点：兵先跑，王后跟。',
+      pieces: [['K',4,6],['P',4,0],['k',2,4]] },
+    { group: '兵与车兵残局', name: '车兵必胜·搭桥', player: 'w', limit: 45, win: 'mate',
+      goal: '车兵对车（Lucena 局面）：教科书式的必胜残局。要点：用兵逼住对方王，再用自己的车在王的头上"搭一座桥"挡住对方的将军。',
+      pieces: [['K',1,2],['P',2,2],['R',7,3],['k',1,4],['r',6,0]] },
+];
 
 class ChessGame {
     constructor() {
@@ -1074,22 +2164,137 @@ class ChessGame {
         this.isAnimating = false;
         this.difficulty = 1;
         this.colorPreference = 'w'; // 滑块偏好：'w' | 'r'（随机）| 'b'
-        // 优先读取已保存的设置（难度/执色/音效）
+        // 显示偏好默认值（localStorage 不可用时用它们）
+        this.showCoords = true;    // 棋盘坐标
+        this.darkMode = false;     // 深色模式
+        this.showHint = false;     // 需要提示（棋盘右下角出现提示按钮）
+        this.practiceMode = false; // 练习模式（残局题库）
+        this.practiceIndex = 0;    // 当前第几题
+        // 优先读取已保存的设置（难度/执色/坐标/深色）
         try {
             const saved = JSON.parse(localStorage.getItem('chessPrefs') || '{}');
             const dif = parseInt(saved.difficulty) || 1;
             this.difficulty = (dif >= 1 && dif <= 4) ? dif : 1;
             const col = ['w', 'r', 'b'].includes(saved.colorPreference) ? saved.colorPreference : 'w';
             this.colorPreference = col;
-            // 音效状态在音频模块内单独持久化
+            this.showCoords = saved.showCoords !== false;   // 默认显示
+            this.darkMode = saved.darkMode === true;        // 默认浅色
+            this.showHint = saved.showHint === true;        // 默认不显示提示按钮
+            this.practiceMode = saved.practiceMode === true; // 默认普通对局
+            const pi = parseInt(saved.practiceIndex);
+            this.practiceIndex = (pi >= 0 && pi < PRACTICE_POSITIONS.length) ? pi : 0;
         } catch (e) { /* localStorage 不可用时静默回退到默认值 */ }
         this.playerColor = null;    // 实际执子色，每局开始时由 resolveColor() 决定
         this.gameMode = 'pvc';     // 默认人机模式
         this.animationToken = 0;
+        this.aiFrame = null;   // AI 搜索前的"让出一帧"rAF 句柄
+        this.aiTimer = null;   // AI 搜索启动的兜底定时器
+        this._aiGen = 0;        // AI 搜索代号（中断即失效）
         this.humanMoved = false;
+        this.hintMove = null;      // 当前显示的提示着法
+        this._hintRunning = false;
+        this.practiceDone = false;
         this.initUI();
-        this.render();
-        this.applyColorPreference(); // 直接按滑块当前值开局，不再弹窗选色
+        this.applyDisplayPrefs();   // 应用已保存的坐标/深色偏好（须在 initUI 之后，元素已就绪）
+        if (this.practiceMode) {
+            // 练习模式：每次打开都从当前题目重新开始（练习进度不进存档）
+            this.startPractice(this.practiceIndex);
+        } else if (!this.restoreGameState()) {
+            // 有上次没下完的对局就接着下（安卓后台被杀是最常见的中断场景），否则按滑块开局
+            this.render();
+            this.applyColorPreference(); // 直接按滑块当前值开局，不再弹窗选色
+        }
+    }
+
+    // ===================== 对局自动保存 / 恢复 =====================
+    // 每步落子后把整局状态写进 localStorage，重开 App 能接着下。
+    saveGameState() {
+        if (this.gameOver) { this.clearSavedGame(); return; }
+        // 练习模式是刷题，不进存档（否则关掉练习模式会莫名恢复到一道残局）
+        if (this.practiceMode) { this.clearSavedGame(); return; }
+        try {
+            localStorage.setItem('chessSavedGame', JSON.stringify({
+                v: 1,
+                board: this.board,
+                currentPlayer: this.currentPlayer,
+                castlingRights: this.castlingRights,
+                enPassantTarget: this.enPassantTarget,
+                sanHistory: this.sanHistory,
+                capturedByWhite: this.capturedByWhite,
+                capturedByBlack: this.capturedByBlack,
+                halfMoveClock: this.halfMoveClock,
+                positionHistory: this.positionHistory.slice(-60),
+                lastMove: this.lastMove,
+                difficulty: this.difficulty,
+                gameMode: this.gameMode,
+                playerColor: this.playerColor
+            }));
+        } catch (e) { /* 存储不可用（隐私模式等）则放弃保存，不影响下棋 */ }
+    }
+
+    clearSavedGame() {
+        try { localStorage.removeItem('chessSavedGame'); } catch (e) { /* 忽略 */ }
+    }
+
+    // 返回 true 表示成功恢复（调用方就不要再开新局了）
+    restoreGameState() {
+        let s = null;
+        try {
+            const raw = localStorage.getItem('chessSavedGame');
+            if (raw) s = JSON.parse(raw);
+        } catch (e) { s = null; }
+        if (!s || !Array.isArray(s.board) || s.board.length !== 8 || !s.board.every(r => Array.isArray(r) && r.length === 8)) {
+            this.clearSavedGame(); return false;
+        }
+        // 盘面自检：双方必须各恰好一个王，着法历史必须是字符串数组；脏数据直接丢弃
+        let wk = 0, bk = 0;
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const v = s.board[r][c];
+            if (typeof v !== 'number' || Math.abs(v) > 6) { this.clearSavedGame(); return false; }
+            if (v === ChessEngine.KING) wk++;
+            if (v === -ChessEngine.KING) bk++;
+        }
+        if (wk !== 1 || bk !== 1) { this.clearSavedGame(); return false; }
+        if (!Array.isArray(s.sanHistory)) { this.clearSavedGame(); return false; }
+        try {
+            this.board = s.board;
+            this.currentPlayer = (s.currentPlayer === -1 || s.currentPlayer === 1) ? s.currentPlayer : ChessEngine.WHITE;
+            this.castlingRights = typeof s.castlingRights === 'string' ? s.castlingRights : '';
+            this.enPassantTarget = Array.isArray(s.enPassantTarget) ? s.enPassantTarget : null;
+            this.sanHistory = s.sanHistory.filter(x => typeof x === 'string');
+            this.capturedByWhite = Array.isArray(s.capturedByWhite) ? s.capturedByWhite.filter(x => typeof x === 'number') : [];
+            this.capturedByBlack = Array.isArray(s.capturedByBlack) ? s.capturedByBlack.filter(x => typeof x === 'number') : [];
+            this.halfMoveClock = Number.isFinite(s.halfMoveClock) ? s.halfMoveClock : 0;
+            this.positionHistory = Array.isArray(s.positionHistory) ? s.positionHistory.filter(x => typeof x === 'number') : [];
+            if (this.positionHistory.length === 0) {
+                this.positionHistory = [ChessEngine.positionKey(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget)];
+            }
+            this.lastMove = s.lastMove && Array.isArray(s.lastMove.from) ? s.lastMove : null;
+            this.gameMode = s.gameMode === 'pvp' ? 'pvp' : 'pvc';
+            this.playerColor = s.playerColor === 'b' ? 'b' : 'w';
+            const dif = parseInt(s.difficulty);
+            if (dif >= 1 && dif <= 4) this.difficulty = dif;
+            this.gameOver = false;
+            this.isThinking = false;
+            this.isAnimating = false;
+            this.selectedSquare = null;
+            this.validMoves = [];
+            this.historyStack = [];        // 悔棋栈不跨进程恢复（重新开一局前的那几步不再可退）
+            this._checkSoundPlayed = false;
+            this.humanMoved = this.sanHistory.length > 0;
+            delete this._squareEls;        // 朝向可能和当前 playerColor 不一致，重建格子 DOM
+            this.updateColorSliderUI();
+            this.updateControlsState();
+            this.render();
+            this.showToast('已恢复上次对局');
+            if (this.gameMode === 'pvc' && this.currentPlayer === this.getAIColorValue()) {
+                this.aiMoveWithDelay();
+            }
+            return true;
+        } catch (e) {
+            this.clearSavedGame();
+            return false;
+        }
     }
 
     isFlipped() {
@@ -1102,14 +2307,100 @@ class ChessGame {
         return this.colorPreference === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : this.colorPreference;
     }
 
-    // 持久化设置（难度/执色）
+    // 持久化设置（难度/执色/坐标/深色）
     savePrefs() {
         try {
             localStorage.setItem('chessPrefs', JSON.stringify({
                 difficulty: this.difficulty,
-                colorPreference: this.colorPreference
+                colorPreference: this.colorPreference,
+                showCoords: this.showCoords,
+                darkMode: this.darkMode,
+                showHint: this.showHint,
+                practiceMode: this.practiceMode,
+                practiceIndex: this.practiceIndex
             }));
         } catch (e) { /* 忽略存储失败 */ }
+    }
+
+    // 应用显示偏好（棋盘坐标 / 深色模式），并同步面板里开关的状态
+    applyDisplayPrefs() {
+        document.body.classList.toggle('hide-coords', !this.showCoords);
+        document.body.classList.toggle('dark', !!this.darkMode);
+        document.body.classList.toggle('show-hint', !!this.showHint);
+        document.body.classList.toggle('practice', !!this.practiceMode);
+        this.updateSettingsUI();
+    }
+
+    updateSettingsUI() {
+        const sync = (el, on) => {
+            if (!el) return;
+            el.classList.toggle('on', !!on);
+            el.setAttribute('aria-checked', on ? 'true' : 'false');
+        };
+        sync(this.switchCoordsEl, this.showCoords);
+        sync(this.switchDarkEl, this.darkMode);
+        sync(this.switchHintEl, this.showHint);
+        sync(this.switchPracticeEl, this.practiceMode);
+    }
+
+    toggleCoords() {
+        this.showCoords = !this.showCoords;
+        this.applyDisplayPrefs();
+        this.savePrefs();
+        this.showToast(this.showCoords ? '已显示棋盘坐标' : '已关闭棋盘坐标');
+    }
+
+    toggleDark() {
+        this.darkMode = !this.darkMode;
+        this.applyDisplayPrefs();
+        this.savePrefs();
+        this.showToast(this.darkMode ? '已切换深色模式' : '已切换浅色模式');
+    }
+
+    toggleHint() {
+        this.showHint = !this.showHint;
+        this.applyDisplayPrefs();
+        this.savePrefs();
+        this.showToast(this.showHint ? '已开启提示按钮' : '已关闭提示按钮');
+    }
+
+    togglePractice() {
+        this.practiceMode = !this.practiceMode;
+        this.applyDisplayPrefs();
+        this.savePrefs();
+        this.hintMove = null;
+        if (this.practiceMode) {
+            this.showToast('练习模式已开启');
+            this.startPractice(this.practiceIndex);
+        } else {
+            this.showToast('已退出练习模式');
+            this.newGame();
+        }
+    }
+
+    openSettings() { if (this.settingsOverlayEl) this.settingsOverlayEl.classList.add('show'); }
+    closeSettings() { if (this.settingsOverlayEl) this.settingsOverlayEl.classList.remove('show'); }
+
+    // 长按绑定：隐形入口用（无任何视觉提示），触摸/鼠标都支持，移动或抬起即取消
+    bindLongPress(el, fn, ms) {
+        const hold = ms || 600;
+        const start = () => {
+            this._cancelLongPress();
+            this._lpTimer = setTimeout(() => { this._lpTimer = null; fn(); }, hold);
+        };
+        const cancel = () => this._cancelLongPress();
+        el.addEventListener('touchstart', start, { passive: true });
+        el.addEventListener('touchend', cancel);
+        el.addEventListener('touchcancel', cancel);
+        el.addEventListener('touchmove', cancel, { passive: true });
+        el.addEventListener('mousedown', start);
+        el.addEventListener('mouseup', cancel);
+        el.addEventListener('mouseleave', cancel);
+        el.addEventListener('contextmenu', (e) => e.preventDefault());   // 屏蔽系统长按菜单
+    }
+
+    _cancelLongPress() {
+        if (this._lpTimer) { clearTimeout(this._lpTimer); this._lpTimer = null; }
     }
 
     applyColorPreference() {
@@ -1186,6 +2477,71 @@ class ChessGame {
         this.resignBtn = document.getElementById('resignBtn');
         this.undoBtn = document.getElementById('undoBtn');
         this.toastEl = document.getElementById('toast');
+        // 精细设置面板（长按顶部标题唤出）
+        this.settingsOverlayEl = document.getElementById('settingsOverlay');
+        this.switchCoordsEl = document.getElementById('switchCoords');
+        this.switchDarkEl = document.getElementById('switchDark');
+        this.switchHintEl = document.getElementById('switchHint');
+        this.switchPracticeEl = document.getElementById('switchPractice');
+        this.hintBtnEl = document.getElementById('hintBtn');
+        this.practiceBarEl = document.getElementById('practiceBar');
+        this.practiceNameEl = document.getElementById('practiceName');
+        this.practiceProgressEl = document.getElementById('practiceProgress');
+        this.practiceGoalEl = document.getElementById('practiceGoal');
+        this.practiceFillEl = document.getElementById('practiceFill');
+        this.practiceMetaEl = document.getElementById('practiceMeta');
+        this.practicePickerEl = document.getElementById('practicePicker');
+        this.practicePickerListEl = document.getElementById('practicePickerList');
+        this.practicePickerSubEl = document.getElementById('practicePickerSub');
+        this.modalPracticeRowEl = document.getElementById('modalPracticeRow');
+        if (this.switchCoordsEl) this.switchCoordsEl.addEventListener('click', () => this.toggleCoords());
+        if (this.switchDarkEl) this.switchDarkEl.addEventListener('click', () => this.toggleDark());
+        if (this.switchHintEl) this.switchHintEl.addEventListener('click', () => this.toggleHint());
+        if (this.switchPracticeEl) this.switchPracticeEl.addEventListener('click', () => this.togglePractice());
+        // 提示按钮
+        if (this.hintBtnEl) this.hintBtnEl.addEventListener('click', () => this.showHint());
+        // 练习面板
+        const pRetry = document.getElementById('practiceRetryBtn');
+        const pNext = document.getElementById('practiceNextBtn');
+        const pPrev = document.getElementById('practicePrevBtn');
+        if (pRetry) pRetry.addEventListener('click', () => this.startPractice(this.practiceIndex));
+        if (pNext) pNext.addEventListener('click', () => this.startPractice(this.practiceIndex + 1));
+        if (pPrev) pPrev.addEventListener('click', () => this.startPractice(this.practiceIndex - 1));
+        // 点题名 → 打开选题列表（20 题只靠"下一题"翻太累）
+        if (this.practiceNameEl) this.practiceNameEl.addEventListener('click', () => this.openPracticePicker());
+        const pClose = document.getElementById('practicePickerClose');
+        if (pClose) pClose.addEventListener('click', () => this.closePracticePicker());
+        if (this.practicePickerEl) {
+            this.practicePickerEl.addEventListener('click', (e) => { if (e.target === this.practicePickerEl) this.closePracticePicker(); });
+        }
+        if (this.practicePickerListEl) {
+            this.practicePickerListEl.addEventListener('click', (e) => {
+                const btn = (e.target && e.target.closest) ? e.target.closest('.picker-item') : null;
+                if (!btn) return;
+                const idx = parseInt(btn.dataset.idx);
+                this.closePracticePicker();
+                if (!isNaN(idx)) this.startPractice(idx);
+            });
+        }
+        const mpRetry = document.getElementById('modalPracticeRetry');
+        const mpNext = document.getElementById('modalPracticeNext');
+        if (mpRetry) mpRetry.addEventListener('click', () => { this.hideModal(); this.startPractice(this.practiceIndex); });
+        if (mpNext) mpNext.addEventListener('click', () => { this.hideModal(); this.startPractice(this.practiceIndex + 1); });
+        // 走棋记录：点击某一手回溯到那一步（事件委托，记录是动态重绘的）
+        if (this.moveListEl) {
+            this.moveListEl.addEventListener('click', (e) => {
+                const t = e.target;
+                const btn = (t && t.closest) ? t.closest('.ply') : null;
+                if (btn && btn.dataset.ply !== undefined) this.rewindToPly(parseInt(btn.dataset.ply));
+            });
+        }
+        const settingsCloseBtn = document.getElementById('settingsClose');
+        if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', () => this.closeSettings());
+        if (this.settingsOverlayEl) {
+            this.settingsOverlayEl.addEventListener('click', (e) => { if (e.target === this.settingsOverlayEl) this.closeSettings(); });
+        }
+        const headerEl = document.querySelector('.header');
+        if (headerEl) this.bindLongPress(headerEl, () => this.openSettings(), 600);   // 隐形长按入口
         if (this.colorSliderEl) {
             this.colorSliderEl.querySelectorAll('.color-slider-opt').forEach(btn => {
                 btn.addEventListener('click', () => this.onColorPreferenceChange(btn.dataset.color));
@@ -1223,6 +2579,43 @@ class ChessGame {
         this.modalEl.addEventListener('click', (e) => { if (e.target === this.modalEl) this.hideModal(); });
     }
 
+    // ===================== 提示（设置里开启「需要提示」后可用） =====================
+    // 用最高档搜索替玩家想一步，并在棋盘上把"起点→终点"标绿；玩家走子后自动消失。
+    clearHint() { this.hintMove = null; }
+
+    showHint() {
+        if (this.gameOver || this.isAnimating || this._hintRunning) return;
+        if (this.gameMode === 'pvc' && this.currentPlayer !== this.getPlayerColorValue()) {
+            this.showToast('现在轮到对方走棋');
+            return;
+        }
+        // 同一手已经提示过 → 直接重新高亮，不重复搜索
+        if (this.hintMove && this._hintPly === this.sanHistory.length) {
+            this.render();
+            this.showToast('建议：' + (this.hintMove._san || '高亮着法'));
+            return;
+        }
+        this._hintRunning = true;
+        if (this.hintBtnEl) this.hintBtnEl.classList.add('busy');
+        this.showToast('正在为你思考…');
+        const token = this.animationToken;
+        setTimeout(() => {
+            let move = null;
+            try {
+                move = ChessEngine.findBestMove(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget, 4, undefined, this.sanHistory);
+            } catch (e) { move = null; }
+            this._hintRunning = false;
+            if (this.hintBtnEl) this.hintBtnEl.classList.remove('busy');
+            if (token !== this.animationToken) return;   // 期间已走子/重开 → 丢弃这次结果
+            if (!move) { this.showToast('暂时没有可走的着法'); return; }
+            move._san = this.moveSAN(move, this.board);
+            this.hintMove = move;
+            this._hintPly = this.sanHistory.length;
+            this.render();
+            this.showToast('建议：' + move._san);
+        }, 40);
+    }
+
     getPlayerColorValue() {
         return this.playerColor === 'b' ? ChessEngine.BLACK : ChessEngine.WHITE;
     }
@@ -1232,6 +2625,9 @@ class ChessGame {
     }
 
     toggleAI() {
+        if (this.practiceMode) { this.showToast('练习模式固定为人机对练'); return; }
+        this.animationToken++;   // 作废进行中的 AI 走子动画（与重开/悔棋/认输保持一致）
+        this.isAnimating = false;
         if (this.gameMode === 'pvc') {
             this.gameMode = 'pvp';
             this.stopAI();
@@ -1255,12 +2651,24 @@ class ChessGame {
 
     // 根据对局状态禁用/启用操作按钮（游戏结束后认输不可点）
     updateControlsState() {
-        if (this.resignBtn) this.resignBtn.disabled = this.gameOver;
+        if (this.resignBtn) {
+            this.resignBtn.disabled = this.gameOver;
+            this.resignBtn.textContent = this.practiceMode ? '放弃本题' : '认输';
+        }
         if (this.undoBtn) this.undoBtn.disabled = this.gameOver;
+        if (this.stopAIBtn) {
+            // 练习模式固定人机对练，不允许切成双人
+            this.stopAIBtn.disabled = this.gameOver || this.practiceMode;
+            this.stopAIBtn.style.opacity = this.practiceMode ? '0.45' : '';
+        }
     }
 
     resign() {
         if (this.gameOver || this.playerColor === null) return;
+        if (this.practiceMode) {
+            this.showModal('放弃本题', '确定要放弃当前这道练习题吗？', 'confirm', () => this.practiceFinish(false, '已放弃本题，可以再来一次。'));
+            return;
+        }
         // 认输前二次确认，防手滑
         this.showModal('认输', this.gameMode === 'pvp' ? '确定要认输吗？' : '确定要认输吗？（本局判负）', 'confirm', () => this.doResign());
     }
@@ -1284,6 +2692,11 @@ class ChessGame {
     }
 
     stopAI() {
+        this._aiGen = (this._aiGen || 0) + 1;   // 让进行中的搜索/待执行回调失效
+        if (this.aiFrame) {
+            cancelAnimationFrame(this.aiFrame);
+            this.aiFrame = null;
+        }
         if (this.aiTimer) {
             clearTimeout(this.aiTimer);
             this.aiTimer = null;
@@ -1410,6 +2823,10 @@ class ChessGame {
                 if (piece === checkKing) {
                     cls += ' in-check';
                 }
+                if (this.hintMove && !this.gameOver) {
+                    if (this.hintMove.from[0]===r && this.hintMove.from[1]===c) cls += ' hint-from';
+                    if (this.hintMove.to[0]===r && this.hintMove.to[1]===c) cls += ' hint-to';
+                }
                 sq.className = cls;
                 if (info.shownPiece !== piece) {
                     info.shownPiece = piece;
@@ -1479,6 +2896,7 @@ class ChessGame {
         this.humanMoved = true;   // 玩家落子（人机模式下用于滑块切换判定；双人模式双方都算）
         this.selectedSquare = null;
         this.validMoves = [];
+        this.render();   // 立刻清掉选中高亮与落点灰点：否则整段走子动画期间灰点还挂在棋盘上
         this.saveState();
         const piece = this.board[move.from[0]][move.from[1]];
         const isCapture = move.captured !== 0 || move.enPassant;
@@ -1567,12 +2985,31 @@ class ChessGame {
         this.lastMove = move;
         this.sanHistory.push(this.moveSAN(move, sanPrevBoard));
         this.currentPlayer = -this.currentPlayer;
+        const moverColor = -this.currentPlayer;   // 刚落子的一方
+        this.hintMove = null;                     // 走过子后提示自动失效
         this.updatePositionHistory();
+        this.saveGameState();          // 每步落子后存档（关掉 App 也能接着下）
+        // 练习模式：先判"是否达成目标"，再判"是否超出步数"
+        if (this.practiceMode && !this.practiceDone) {
+            const ex = PRACTICE_POSITIONS[this.practiceIndex];
+            const playerJustMoved = moverColor === this.getPlayerColorValue();
+            this.updatePracticeUI();          // 每步刷新"已用 X/Y 步"和进度条
+            if (playerJustMoved && ex && ex.win === 'promote' && move.promotion) {
+                this.render();
+                this.practiceFinish(true, '兵已升变，胜势已定。');
+                return;
+            }
+            if (playerJustMoved && ex && this.getPracticeUsed() > ex.limit) {
+                this.render();
+                this.practiceFinish(false, `超过 ${ex.limit} 步的上限了，再试一次。`);
+                return;
+            }
+        }
         this.render();
         // 检查王是否被吃
         this.checkKingCapture();
         if (this.checkGameEnd()) {
-            SoundManager.playGameEnd();
+            if (!this.practiceMode) SoundManager.playGameEnd();   // 练习模式的音效在 practiceFinish 里播
             return;
         }
         if (this.gameMode === 'pvc' && this.currentPlayer === this.getAIColorValue()) {
@@ -1596,27 +3033,37 @@ class ChessGame {
         this.isThinking = true;
         this.render();
         this.abortController = new AbortController();
+        const ac = this.abortController;
         const aiColor = this.getAIColorValue();
-        // 无固定人为延迟：直接计算并走子（计算耗时本身即"思考时间"）
-        this.aiTimer = setTimeout(() => {
-            this.aiTimer = null;
-            if (this.abortController.aborted) {
-                this.isThinking = false;
-                this.render();
-                return;
-            }
+        const gen = ++this._aiGen;   // 本次搜索代号：被中断（重开/悔棋/认输/切模式）后自动失效
+        const stale = () => gen !== this._aiGen || ac.aborted;
+        const runSearch = () => {
+            if (stale()) { this.isThinking = false; this.render(); return; }
             const move = ChessEngine.findBestMove(
                 this.board, aiColor, this.castlingRights, this.enPassantTarget,
-                this.difficulty, this.abortController.signal, this.sanHistory
+                this.difficulty, ac.signal, this.sanHistory
             );
-            if (move && !this.abortController.aborted) {
+            if (move && !stale()) {
                 this.executeAIMove(move);
             } else {
                 this.isThinking = false;
                 this.render();
                 this.checkGameEnd();
             }
-        }, 0);
+        };
+        // 搜索是同步阻塞的：理想情况是先让浏览器画一帧（"AI思考中"提示 + 棋盘更新）再开搜，
+        // 否则界面会停在上一帧的画面上（旧提示、残留灰点），看起来像卡住。
+        // 但 rAF 在后台标签页/不出帧的环境里根本不会触发，所以必须用定时器兜底 —— 两个谁先到算谁。
+        let started = false;
+        const start = () => {
+            if (started) return;
+            started = true;
+            if (this.aiFrame) { cancelAnimationFrame(this.aiFrame); this.aiFrame = null; }
+            if (this.aiTimer) { clearTimeout(this.aiTimer); this.aiTimer = null; }
+            runSearch();
+        };
+        this.aiFrame = requestAnimationFrame(start);
+        this.aiTimer = setTimeout(start, 100);
     }
 
     async executeAIMove(move) {
@@ -1624,6 +3071,9 @@ class ChessGame {
         const token = ++this.animationToken;
         this.saveState();
         this.isAnimating = true;
+        this.selectedSquare = null;
+        this.validMoves = [];
+        this.render();   // 立刻清掉残留的选中高亮/灰点（AI 走子期间不该还留着玩家的落点提示）
         const piece = this.board[move.from[0]][move.from[1]];
         const isCapture = move.captured !== 0 || move.enPassant;
         this.clearAnimationElements();
@@ -1690,8 +3140,8 @@ class ChessGame {
         const startTime = performance.now();
         await new Promise(resolve => {
             // 后台标签页 rAF 会被节流暂停导致动画永不结束，用 setTimeout 兜底强制走完，防止 isAnimating 卡死
-            let settled = false;
-            const finish = () => { if (settled) return; settled = true; resolve(); };
+            let settled = false, guardTimer = null;
+            const finish = () => { if (settled) return; settled = true; if (guardTimer) clearTimeout(guardTimer); resolve(); };
             let lastNow = performance.now();
             let stuckCount = 0;
             const step = (now) => {
@@ -1712,11 +3162,11 @@ class ChessGame {
                 }
             };
             requestAnimationFrame(step);
-            // 绝对兜底：超过 (动画时长+1s) 仍未结束就去掉 rAF 依赖，直接收尾
-            const guardTimer = setTimeout(() => finish(), animDuration * 1000 + 1000);
-            // 动画正常结束后清理兜底定时器，避免悬挂
-            Promise.resolve().then(() => { if (settled) clearTimeout(guardTimer); });
+            // 绝对兜底：超过 (动画时长+1s) 仍未结束就去掉 rAF 依赖，直接收尾（正常结束时由 finish 清掉）
+            guardTimer = setTimeout(() => finish(), animDuration * 1000 + 1000);
         });
+        // 动画期间若已重开对局/悔棋/认输(token 变化)，这一步作废 —— 否则会把着法落到新局面上（幽灵走子）
+        if (token !== this.animationToken) { this.isAnimating = false; this.isThinking = false; this.clearAnimationElements(); return; }
         animPiece.remove();
         if (capturedAnimEl) capturedAnimEl.remove();
 
@@ -1770,10 +3220,19 @@ class ChessGame {
             this.gameOver = true;
             if (ChessEngine.isInCheck(this.board, this.currentPlayer)) {
                 const winnerColorValue = -this.currentPlayer;
+                if (this.practiceMode) {
+                    const ok = winnerColorValue === this.getPlayerColorValue();
+                    this.practiceFinish(ok, ok ? '漂亮的将杀！' : '被对方将杀了，再试一次。');
+                    return true;
+                }
                 const winnerName = winnerColorValue === ChessEngine.WHITE ? '白方' : '黑方';
                 const winner = (this.gameMode === 'pvc' && winnerColorValue === this.getAIColorValue()) ? 'AI' : winnerName;
                 this.showModal('将杀！', `${winner}获胜！`, 'end');
             } else {
+                if (this.practiceMode) {
+                    this.practiceFinish(false, '逼和了——杀王时要给对方留一口气，让它无路可走就是和棋。');
+                    return true;
+                }
                 this.showModal('逼和', '和棋！', 'end');
             }
             return true;
@@ -1782,16 +3241,19 @@ class ChessGame {
         const count = this.positionHistory.filter(k => k === key).length;
         if (count >= 3) {
             this.gameOver = true;
+            if (this.practiceMode) { this.practiceFinish(false, '三次重复成和——练习时要主动求变。'); return true; }
             this.showModal('三次重复', '和棋！', 'end');
             return true;
         }
         if (this.halfMoveClock >= 100) {
             this.gameOver = true;
+            if (this.practiceMode) { this.practiceFinish(false, '触发五十步规则成和——推进得太慢了。'); return true; }
             this.showModal('五十步规则', '和棋！', 'end');
             return true;
         }
         if (this.isInsufficientMaterial()) {
             this.gameOver = true;
+            if (this.practiceMode) { this.practiceFinish(false, '子力不足成和——追杀的棋子被吃掉了，再试一次。'); return true; }
             this.showModal('子力不足', '和棋！', 'end');
             return true;
         }
@@ -1849,6 +3311,7 @@ class ChessGame {
 
     // mode: 'plain'(仅确定) | 'confirm'(取消/确认) | 'end'(看看棋盘/再来一局)
     showModal(title, message, mode = 'plain', confirmFn = null) {
+        if (mode === 'end') this.clearSavedGame();   // 对局已结束，不再保留续下存档
         this.modalTitleEl.textContent = title;
         this.modalMessageEl.textContent = message;
         this.promotionPiecesEl.innerHTML = '';
@@ -1856,6 +3319,7 @@ class ChessGame {
         this.modalCloseEl.style.display = mode === 'plain' ? 'inline-block' : 'none';
         this.modalConfirmRowEl.classList.toggle('show', mode === 'confirm');
         this.modalEndRowEl.classList.toggle('show', mode === 'end');
+        if (this.modalPracticeRowEl) this.modalPracticeRowEl.classList.toggle('show', mode === 'practice');
         this.modalEl.classList.add('show');
     }
 
@@ -1928,14 +3392,68 @@ class ChessGame {
         if (this._capBottomHtml !== bottomHtml) { this._capBottomHtml = bottomHtml; this.capturedByWhiteEl.innerHTML = bottomHtml; }
     }
 
+    // ===================== 走棋记录点击回溯 =====================
+    // 点记录里的某一手 → 回到"那一手走之前"的局面（相当于连续悔棋到那一步）。
+    // historyStack[i] 存的正是第 i 手走之前的状态，与 sanHistory 一一对应。
+    rewindToPly(ply) {
+        if (this.isAnimating || this._hintRunning || this.practiceDone) return;
+        if (!Number.isInteger(ply) || ply < 0 || ply >= this.sanHistory.length) return;
+        if (this.gameOver && !this.practiceMode) { this.showToast('对局已结束，请点“新对局”重开'); return; }
+        const discard = this.sanHistory.length - ply;
+        if (discard >= 6) {
+            const moveNo = Math.floor(ply/2) + 1;
+            const side = (ply % 2 === 0) ? '白方' : '黑方';
+            this.showModal('回溯确认', `将放弃后面的 ${discard} 手棋，回到第 ${moveNo} 手${side}走棋之前。`, 'confirm', () => this.applyRewind(ply));
+        } else {
+            this.applyRewind(ply);
+        }
+    }
+
+    applyRewind(ply) {
+        const snap = this.historyStack[ply];
+        if (!snap) return;
+        this.animationToken++;
+        this.stopAI();
+        this.board = snap.board.map(r => r.slice());
+        this.currentPlayer = snap.currentPlayer;
+        this.capturedByWhite = [...snap.capturedByWhite];
+        this.capturedByBlack = [...snap.capturedByBlack];
+        this.castlingRights = snap.castlingRights;
+        this.enPassantTarget = snap.enPassantTarget;
+        this.lastMove = snap.lastMove;
+        this.positionHistory = [...snap.positionHistory];
+        this.halfMoveClock = snap.halfMoveClock;
+        this.historyStack = this.historyStack.slice(0, ply);
+        this.sanHistory = this.sanHistory.slice(0, ply);
+        this.gameOver = false;
+        this.isThinking = false;
+        this.isAnimating = false;
+        this.selectedSquare = null;
+        this.validMoves = [];
+        this.hintMove = null;
+        this._checkSoundPlayed = false;
+        this.render();
+        if (this.practiceMode) this.updatePracticeUI();
+        this.updateControlsState();
+        this.saveGameState();
+        const mine = this.currentPlayer === this.getPlayerColorValue();
+        this.showToast(`已回到第 ${Math.floor(ply/2)+1} 手之前` + (mine ? '，该你走' : ''));
+        if (this.gameMode === 'pvc' && this.currentPlayer === this.getAIColorValue()) this.aiMoveWithDelay();
+    }
+
     updateMoveHistory() {
         let html = '';
+        const last = this.sanHistory.length - 1;
         for (let i=0; i<this.sanHistory.length; i+=2) {
             const num = Math.floor(i/2)+1;
             const w = this.sanHistory[i] || '';
             const b = this.sanHistory[i+1] || '';
-            html += `<span class="move-entry">${num}. ${w} ${b}</span>`;
+            html += `<span class="move-entry">${num}.`;
+            if (w) html += `<button class="ply${i === last ? ' cur' : ''}" data-ply="${i}">${w}</button>`;
+            if (b) html += `<button class="ply${i+1 === last ? ' cur' : ''}" data-ply="${i+1}">${b}</button>`;
+            html += `</span>`;
         }
+        if (this.moveHistoryEl) this.moveHistoryEl.classList.toggle('rewindable', this.sanHistory.length > 1);
         if (this._moveListHtml !== html) {
             this._moveListHtml = html;
             this.moveListEl.innerHTML = html;
@@ -1945,8 +3463,18 @@ class ChessGame {
 
     moveSAN(move, prevBoard) {
         if (!move) return '';
-        if (move.castling === 'K') return 'O-O';
-        if (move.castling === 'Q') return 'O-O-O';
+        // 将军/将杀后缀先算出来：易位也可能造成将军(O-O+)，不能提前 return 把它漏掉
+        let suffix = '';
+        try {
+            const oppColor = -this.currentPlayer;
+            if (ChessEngine.isInCheck(this.board, oppColor)) {
+                const oppLegal = ChessEngine.generateMoves(this.board, oppColor, this.castlingRights, this.enPassantTarget)
+                    .filter(m => !ChessEngine.isInCheck(ChessEngine.makeMove(this.board, m), oppColor));
+                suffix = oppLegal.length === 0 ? '#' : '+';
+            }
+        } catch (e) { /* 不因记谱问题中断走子 */ }
+        if (move.castling === 'K') return 'O-O' + suffix;
+        if (move.castling === 'Q') return 'O-O-O' + suffix;
         const type = Math.abs(move.piece);
         const toFile = FILES[move.to[1]];
         const toRank = 8 - move.to[0];
@@ -1977,20 +3505,133 @@ class ChessGame {
             }
         }
 
-        // 将军/将杀标记：此时 this.currentPlayer 仍是刚走完的一方，对方 = -currentPlayer
-        let suffix = '';
-        try {
-            const oppColor = -this.currentPlayer;
-            if (ChessEngine.isInCheck(this.board, oppColor)) {
-                const oppLegal = ChessEngine.generateMoves(this.board, oppColor, this.castlingRights, this.enPassantTarget)
-                    .filter(m => !ChessEngine.isInCheck(ChessEngine.makeMove(this.board, m), oppColor));
-                suffix = oppLegal.length === 0 ? '#' : '+';
-            }
-        } catch (e) { /* 不因记谱问题中断走子 */ }
+        // 后缀(suffix)已在函数开头算好（易位分支也要用）
         return `${sym}${disambig}${cap}${toFile}${toRank}${promoSuffix}${suffix}`;
     }
 
+    // ===================== 练习模式 =====================
+    // 玩家已走的手数（按记谱长度和执色推算，悔棋/回溯后自动正确）
+    getPracticeUsed() {
+        const idx = this.getPlayerColorValue() === ChessEngine.WHITE ? 0 : 1;
+        let n = 0;
+        for (let i = idx; i < this.sanHistory.length; i += 2) n++;
+        return n;
+    }
+
+    startPractice(index) {
+        const n = PRACTICE_POSITIONS.length;
+        this.practiceIndex = ((index % n) + n) % n;
+        const ex = PRACTICE_POSITIONS[this.practiceIndex];
+        this.animationToken++;
+        this.stopAI();
+        // 按题目摆子（棋盘坐标：行 0 = 第8横线，列 0 = a 线）
+        const map = { K:ChessEngine.KING, Q:ChessEngine.QUEEN, R:ChessEngine.ROOK, B:ChessEngine.BISHOP, N:ChessEngine.KNIGHT, P:ChessEngine.PAWN };
+        const b = Array(8).fill().map(() => Array(8).fill(0));
+        for (const [ch, r, c] of ex.pieces) {
+            const up = String(ch).toUpperCase();
+            if (map[up] === undefined) continue;
+            b[r][c] = (String(ch) === up) ? map[up] : -map[up];
+        }
+        this.board = b;
+        this.playerColor = ex.player;
+        delete this._squareEls;               // 朝向由题目决定，重建格子
+        this.currentPlayer = (ex.player === 'w') ? ChessEngine.WHITE : ChessEngine.BLACK;
+        this.castlingRights = '';
+        this.enPassantTarget = null;
+        this.selectedSquare = null;
+        this.validMoves = [];
+        this.historyStack = [];
+        this.sanHistory = [];
+        this.capturedByWhite = [];
+        this.capturedByBlack = [];
+        this.lastMove = null;
+        this.gameOver = false;
+        this.isThinking = false;
+        this.isAnimating = false;
+        this._checkSoundPlayed = false;
+        this.humanMoved = false;
+        this.hintMove = null;
+        this.practiceDone = false;
+        this.halfMoveClock = 0;
+        this.positionHistory = [ChessEngine.positionKey(this.board, this.currentPlayer, '', null)];
+        this.gameMode = 'pvc';
+        this.clearSavedGame();
+        this.updateColorSliderUI();
+        this.updateControlsState();
+        this.updatePracticeUI();
+        this.render();
+        this.hideModal();
+        if (this.currentPlayer === this.getAIColorValue()) this.aiMoveWithDelay();
+    }
+
+    updatePracticeUI() {
+        if (!this.practiceBarEl) return;
+        const ex = PRACTICE_POSITIONS[this.practiceIndex];
+        if (!ex) return;
+        const used = this.getPracticeUsed();
+        const inGroup = PRACTICE_POSITIONS.slice(0, this.practiceIndex + 1).filter(e => e.group === ex.group).length;
+        const groupTotal = PRACTICE_POSITIONS.filter(e => e.group === ex.group).length;
+        const total = PRACTICE_POSITIONS.length;
+        this.practiceNameEl.textContent = `${ex.name}（你执${ex.player === 'w' ? '白' : '黑'}）`;
+        this.practiceProgressEl.textContent = `已用 ${used} / ${ex.limit} 步`;
+        if (this.practiceMetaEl) this.practiceMetaEl.textContent = `${ex.group} ${inGroup}/${groupTotal} · 全库第 ${this.practiceIndex + 1}/${total} 题`;
+        this.practiceGoalEl.textContent = ex.goal;
+        if (this.practiceFillEl) {
+            const pct = Math.min(100, Math.round(used / ex.limit * 100));
+            this.practiceFillEl.style.width = pct + '%';
+            this.practiceFillEl.classList.toggle('warn', used >= ex.limit - 2);
+        }
+    }
+
+    // 选题列表（题多了只靠"下一题"翻太累）
+    openPracticePicker() {
+        this.buildPracticePicker();
+        if (this.practicePickerEl) this.practicePickerEl.classList.add('show');
+    }
+    closePracticePicker() {
+        if (this.practicePickerEl) this.practicePickerEl.classList.remove('show');
+    }
+    buildPracticePicker() {
+        if (!this.practicePickerListEl) return;
+        const tag = (ex) => ex.win === 'promote' ? '升变' : (ex.limit <= 3 ? `杀${ex.limit}步` : '将杀');
+        let html = '', lastGroup = null;
+        PRACTICE_POSITIONS.forEach((ex, i) => {
+            if (ex.group !== lastGroup) { lastGroup = ex.group; html += `<div class="picker-group">${ex.group}</div>`; }
+            html += `<button class="picker-item${i === this.practiceIndex ? ' cur' : ''}" data-idx="${i}">`
+                  + `<span class="picker-no">${i + 1}</span>`
+                  + `<span class="picker-name">${ex.name}</span>`
+                  + `<span class="picker-tag">${tag(ex)} · ${ex.limit} 步内</span></button>`;
+        });
+        this.practicePickerListEl.innerHTML = html;
+        if (this.practicePickerSubEl) this.practicePickerSubEl.textContent = `共 ${PRACTICE_POSITIONS.length} 题`;
+        // 滚动到当前题
+        const cur = this.practicePickerListEl.querySelector('.picker-item.cur');
+        if (cur) this.practicePickerListEl.scrollTop = Math.max(0, cur.offsetTop - 60);
+    }
+
+    // 完成/失败统一入口：锁住棋盘 + 弹窗给出重试/下一题
+    practiceFinish(success, detail) {
+        if (this.practiceDone) return;
+        this.practiceDone = true;
+        this.gameOver = true;
+        this.isThinking = false;
+        this.stopAI();
+        this.hintMove = null;
+        this.clearSavedGame();
+        this.updatePracticeUI();
+        this.updateControlsState();
+        SoundManager.playGameEnd();
+        const ex = PRACTICE_POSITIONS[this.practiceIndex];
+        const used = this.getPracticeUsed();
+        if (success) {
+            this.showModal('完成！', `「${ex.name}」用了 ${used} 步（上限 ${ex.limit} 步）。${detail || ''}`, 'practice');
+        } else {
+            this.showModal('未完成', `「${ex.name}」已用 ${used} 步，未达成目标。${detail || ''}`, 'practice');
+        }
+    }
+
     newGame() {
+        if (this.practiceMode) { this.startPractice(this.practiceIndex); return; }
         this.animationToken++;
         this.stopAI();
         // 每局新对局都重新决定执子色：滑块为「随机」时此处重摇一次
@@ -2016,10 +3657,12 @@ class ChessGame {
         this.isThinking = false;
         this.isAnimating = false;
         this.lastMove = null;
-        this.positionHistory = [];
+        // 初始局面也要计入三次重复计数（否则回到开局局面时少算一次，判和会偏晚）
+        this.positionHistory = [ChessEngine.positionKey(this.board, ChessEngine.WHITE, this.castlingRights, this.enPassantTarget)];
         this.halfMoveClock = 0;
         this._checkSoundPlayed = false;
         this.humanMoved = false;   // 玩家本局是否已落子（决定滑块切换能否立即生效）
+        this.clearSavedGame();     // 新对局覆盖旧存档
         this.updateControlsState();
         this.render();
         this.hideModal();
@@ -2066,6 +3709,8 @@ class ChessGame {
         this.isAnimating = false;
         this._checkSoundPlayed = false;
         this.render();
+        if (this.practiceMode) this.updatePracticeUI();   // 练习模式：已用步数跟着回退
+        this.saveGameState();      // 悔棋后的局面也要覆盖存档，避免重开 App 又回到"被悔掉"的局面
         if (this.gameMode === 'pvc' && this.currentPlayer === this.getAIColorValue() && !this.gameOver) {
             this.aiMoveWithDelay();
         }
@@ -2074,6 +3719,26 @@ class ChessGame {
 
 // 启动游戏
 const game = new ChessGame();
+
+// 安卓返回键：先关设置面板/弹窗，都没有再退出 App。
+// 返回 'handled' 表示已被页面消化，'exit' 表示可以让系统退回。
+window.__androidBack = function () {
+    try {
+        if (game.practicePickerEl && game.practicePickerEl.classList.contains('show')) {
+            game.closePracticePicker();
+            return 'handled';
+        }
+        if (game.settingsOverlayEl && game.settingsOverlayEl.classList.contains('show')) {
+            game.closeSettings();
+            return 'handled';
+        }
+        if (game.modalEl && game.modalEl.classList.contains('show')) {
+            game.hideModal();
+            return 'handled';
+        }
+    } catch (e) { /* 出错则按退出处理 */ }
+    return 'exit';
+};
 </script>
 </body>
 </html>
