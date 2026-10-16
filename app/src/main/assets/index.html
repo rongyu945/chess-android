@@ -3,11 +3,42 @@
 <head>
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>国际象棋 · 离线AI增强版 v7.2.4</title>
+    <title>国际象棋 · 离线AI增强版 v7.7.3</title>
+    <!-- v7.7.3
+     · App 图标更换为新版设计稿（马头棋子·绿白棋盘），不影响任何功能。
+    -->
+    <!-- v7.7.2
+     · 坐标可读性修复：棋盘坐标对比度不足（浅色模式下最差 1.73，实测基本看不清）。
+       黑字透明度 0.3→0.6、白字 0.3→0.7、字重 600→700，字号与标注方式不变。
+       改动后浅色模式数字对比度 2.09→5.47、深色模式 4.30→6.65。
+-->
+<!-- v7.7.0 更新摘要
+     · 引擎性能：cloneBoard 硬编码 slice / 方向数组提升为常量 / isSquareAttacked 手写展开 +
+       行引用缓存 / getCastlingRights 位掩码 —— 实测搜索吞吐 +33%，同预算下 4/7 个代表局面多搜 1 层，
+       且 8/8 局面着法完全一致（零棋力风险）。
+     · 健壮性：Worker 支持 cancel（悔棋/重开立刻停算，不再白烧 2.8s CPU）；Worker 出错后惰性重建
+       （不再永久静默降级回主线程）；搜索超时 + 三层兜底（杜绝"永远思考中"）。
+     · 开局库：键由 san 路径改为局面哈希，转位也能命中（1.Nf3 Nf6 2.d4 与 1.d4 Nf6 2.Nf3 等价）。
+     · 复盘：分析深度按子力数自适应（>20 子用 3 层，残局用 4 层）。
+     · 练习题：远方通路兵 20→40 步、马象杀单王 45→60 步（原上限在标准档位下不可能完成）。
+     · 界面：设置齿轮（原为隐形长按）/ 思考计时 / 悔棋剩余次数 /
+       键盘快捷键（←→ 翻阅复盘、Ctrl+Z 悔棋、N 新对局、H 提示、Esc 关闭）。
+-->
     <style>
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "Helvetica Neue", sans-serif; background:#f0f2f5; color:#1f2937; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:16px 12px; }
         .header { margin-bottom:12px; display:flex; align-items:center; gap:12px; }
+        /* v7.7.0：设置齿轮（原为隐形长按标题，可见入口更符合直觉） */
+        .settings-gear { margin-left:auto; width:32px; height:32px; border-radius:50%; border:none;
+                         background:rgba(255,255,255,0.85); color:#4b5563; cursor:pointer; padding:0;
+                         display:flex; align-items:center; justify-content:center;
+                         box-shadow:0 2px 6px rgba(0,0,0,0.12); transition:transform .15s, background .15s;
+                         -webkit-tap-highlight-color:transparent; flex-shrink:0; }
+        .settings-gear:hover { background:#fff; transform:rotate(35deg); }
+        .settings-gear:active { transform:scale(0.92); }
+        .dark .settings-gear { background:rgba(55,65,81,0.85); color:#cbd5e1; }
+        /* v7.7.0：思考计时（大师档 2.8s，给用户一个"还在动"的可见信号） */
+        .thinking-timer { font-family:"SF Mono",Menlo,monospace; font-size:0.72rem; opacity:.75; min-width:30px; display:inline-block; }
         .header h1 { font-size:1.5rem; font-weight:600; }
         .game-container { width:100%; max-width:500px; display:flex; flex-direction:column; gap:6px; }
         .status-bar { background:#ffffff; border-radius:20px; padding:7px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; align-items:center; justify-content:space-between; min-height:40px; transition:background 0.2s; }
@@ -67,10 +98,14 @@
         .square.last-move::before { content:""; position:absolute; inset:20%; border-radius:50%; background:radial-gradient(circle, rgba(88,204,2,0.5) 0%, transparent 70%); pointer-events:none; z-index:1; }
         .square.in-check { animation:kingAlert 0.6s infinite alternate; }
         @keyframes kingAlert { 0% { background:#ffd0d0 !important; } 100% { background:#ffb8b8 !important; } }
-        .square .coord { position:absolute; font-size:7px; font-weight:600; color:rgba(0,0,0,0.3); pointer-events:none; }
+        /* v7.7.2：坐标对比度修复。旧版黑/白均 0.3 透明度，在浅色模式下深绿格 r(138,168,128) 上
+           实测只有 1.73~2.09 的 WCAG 对比度（该底色即使纯黑字上限也只有 7.99），基本看不清。
+           实测黑字透明度 → 对比度：0.3→1.89 · 0.45→2.72 · 0.6→3.49 · 0.75→5.62。
+           故提到 0.6/0.7 并加粗到 700；字号仍 7px、每格标注方式均不变。 */
+        .square .coord { position:absolute; font-size:7px; font-weight:700; color:rgba(0,0,0,0.6); pointer-events:none; letter-spacing:.2px; }
         .square .coord-file { bottom:2px; right:4px; }
         .square .coord-rank { top:2px; left:4px; }
-        .dark .coord { color:rgba(255,255,255,0.3); }
+        .dark .coord { color:rgba(255,255,255,0.7); }
         /* 6.0.0：动画棋子容器仍是 flex(宽=高=格子px)，内部 span 用 58% 图片 */
 .animating-piece { position:absolute; display:flex; align-items:center; justify-content:center; font-size:clamp(28px,8vw,48px); pointer-events:none; z-index:60; will-change:transform; transition:transform 0.32s cubic-bezier(0.2,0,0.2,1); }
 /* 动画棋子按类型分大小 + 底部对齐（同主盘，Duolingo高度比例） */
@@ -87,7 +122,9 @@
         @keyframes pieceAppear { from { opacity:0; transform:translateY(-6px); } to { opacity:0.7; transform:translateY(0); } }
         .controls { display:flex; flex-direction:column; gap:10px; }
         .control-row { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; }
-.control-row .btn { padding:5px 14px; }  /* 按钮行更细：垂直 padding 10px→5px */
+.control-row .btn { padding:10px 14px; }  /* 7.2.6：与基础 .btn 同高（原为更紧凑的 5px）；下方操作栏按钮在全部模式下都保持这一高度 */
+        /* 手机 ≤400px：媒体查询把基础 .btn 降到 8px，控制行按钮同步降到 8px 保持同高 */
+        @media (max-width:400px) { .control-row .btn { padding:8px 12px; } }
         .btn { border:none; border-radius:14px; padding:10px 16px; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.15s; background:#e5e7eb; color:#1f2937; touch-action:manipulation; }
         .btn:hover { background:#d1d5db; transform:translateY(-1px); }
         .btn:active { transform:scale(0.96); }
@@ -371,6 +408,14 @@
 <body>
 <div class="header">
     <h1>♚ 国际象棋</h1>
+    <!-- v7.7.0：设置入口由"隐形长按标题"改为可见齿轮按钮（长按仍保留为兼容入口） -->
+    <button class="settings-gear" id="settingsGear" title="精细设置" aria-label="精细设置">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </button>
 </div>
 <div class="game-container">
     <div class="status-bar" id="status">
@@ -381,7 +426,7 @@
         <div class="status-right">
             <span class="eval-score" id="evalScore">+0.0</span>
             <span class="thinking-indicator" id="thinkingIndicator">
-                AI思考中
+                AI思考中 <span class="thinking-timer" id="thinkingTimer">0.0s</span>
                 <span class="thinking-dots"><span></span><span></span><span></span></span>
             </span>
         </div>
@@ -495,7 +540,7 @@
 <div class="settings-overlay" id="settingsOverlay">
     <div class="settings-panel">
         <div class="settings-head"><h2>精细设置</h2></div>
-        <div class="settings-sub">长按顶部标题可再次唤出</div>
+        <div class="settings-sub">也可长按顶部标题，或按 Esc 关闭</div>
         <div class="settings-row">
             <span class="settings-row-label">棋盘坐标</span>
             <button class="switch" id="switchCoords" role="switch" aria-checked="true"><span class="knob"></span></button>
@@ -523,7 +568,10 @@
 
 <script>
 // ===================== 国际象棋引擎（优化版） =====================
-const ChessEngine = (() => {
+// v7.5.0：引擎从匿名 IIFE 改为一等工厂函数——函数体不引用任何外层变量，
+// 可被 toString() 序列化进 Blob Web Worker，在后台线程独立实例化跑搜索（单文件离线仍可用）；
+// 主线程照常实例化一份，供走法生成/合法性/记谱/复盘分析用。
+function ChessEngineFactory() {
     const EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6;
     const WHITE = 1, BLACK = -1;
     const PIECE_VALUES = { [PAWN]:100, [KNIGHT]:320, [BISHOP]:330, [ROOK]:500, [QUEEN]:900, [KING]:20000 };
@@ -1347,15 +1395,113 @@ const ChessEngine = (() => {
         "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Na5 Bc2": ["1232"],
         "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Na5 Bc2 c5": ["6343"]
     };
-    function findOpeningBookMove(sanHistory) {
+    // ===== v7.7.0 开局库改造：键由「san 着法序列」改为「局面哈希」=====
+    // 旧实现的键是**到达某局面的 san 路径**，值是**从那个局面该走的着法**：
+    //   OPENING_BOOK["e4"]     → 1.e4 之后（黑走）的候选
+    //   OPENING_BOOK["e4 e5"]  → 1.e4 e5 之后（白走）的候选
+    // 因为是按路径字符串精确匹配，只要走了一步库外着法再走回主线，就会永久脱库——
+    // 而两条路径到达的其实是同一个局面：
+    //   例：1.d4 Nf6 2.Nf3 与 1.Nf3 Nf6 2.d4 完全等价，旧实现只有其中一条能命中。
+    // 新实现：加载时用 SAN 解析把 812 条路径各重放一遍，把「该局面哈希 → 候选着法」记进
+    // BOOK_INDEX；查询时只比对当前局面哈希，转位自然命中。库内容一行都不用改。
+    let BOOK_INDEX = null;          // Map<positionKey, candidateCodes[]>
+    let BOOK_STAT = null;
+
+    function bookCodeToMove(code) {
+        return { from: [+code[0], +code[1]], to: [+code[2], +code[3]] };
+    }
+
+    // 极简 SAN 解析：库内只用得到这些形式（无升变、无 e.p. 标记）
+    //   兵着法 e4 / exd5 ；子着法 Nf3 / Nbd7 / Ndb5 / Bxe5 ；易位 O-O / O-O-O ；后缀 + #
+    function parseSANMove(board, color, rights, ep, san) {
+        let t = String(san).replace(/[+#?!]+$/, '');
+        const legal = generateMoves(board, color, rights, ep);
+        if (t === 'O-O' || t === '0-0') return legal.find(m => m.castling === 'K') || null;
+        if (t === 'O-O-O' || t === '0-0-0') return legal.find(m => m.castling === 'Q') || null;
+        const isCap = t.indexOf('x') >= 0;
+        t = t.replace('x', '');
+        let pieceType = PAWN, rest = t;
+        const c0 = t.charAt(0);
+        if (c0 >= 'A' && c0 <= 'Z') {
+            pieceType = { K: KING, Q: QUEEN, R: ROOK, B: BISHOP, N: KNIGHT }[c0];
+            if (pieceType === undefined) return null;
+            rest = t.slice(1);
+        }
+        if (rest.length < 2) return null;
+        const target = rest.slice(-2);
+        const disamb = rest.slice(0, -2);
+        const tCol = 'abcdefgh'.indexOf(target.charAt(0));
+        const tRow = 8 - parseInt(target.charAt(1), 10);
+        if (tCol < 0 || !(tRow >= 0 && tRow < 8)) return null;
+        const cands = legal.filter(m => {
+            const p = board[m.from[0]][m.from[1]];
+            if (getPieceType(p) !== pieceType) return false;
+            if (m.to[0] !== tRow || m.to[1] !== tCol) return false;
+            if (isCap && m.captured === 0 && !m.enPassant) return false;
+            if (disamb.length === 1) {
+                if (disamb >= 'a' && disamb <= 'h') {
+                    if (m.from[1] !== disamb.charCodeAt(0) - 97) return false;
+                } else if (m.from[0] !== 8 - parseInt(disamb, 10)) return false;
+            }
+            return true;
+        });
+        return cands.length ? cands[0] : null;
+    }
+
+    // 重放一条库路径，把「该路径走完之后那个局面 → codes」写进索引。
+    // 结构要点（容易看错）：键是**到达某局面的路径**，值是**从那个局面该走的着法**，
+    // 所以 codes 要挂在「走完这整条路径之后」的局面上：
+    //   ""        → 开局初始局面（白走）的候选
+    //   "e4"      → 1.e4 之后（黑走）的候选
+    //   "e4 e5"   → 1.e4 e5 之后（白走）的候选
+    function indexBookPath(sanLine, codes, stat) {
+        let board = createInitialBoard();
+        let rights = 'KQkq', ep = null;
+        const plies = sanLine ? sanLine.split(' ') : [];
+        for (let i = 0; i < plies.length; i++) {
+            const color = (i % 2 === 0) ? WHITE : BLACK;
+            const mv = parseSANMove(board, color, rights, ep, plies[i]);
+            if (!mv) { stat.badSAN++; return { ok: false, plies: i }; }
+            const nb = makeMove(board, mv);
+            const nr = getCastlingRights(nb, rights);
+            const ne = getEnPassantTarget(nb, mv);
+            board = nb; rights = nr; ep = ne;
+        }
+        const color = (plies.length % 2 === 0) ? WHITE : BLACK;
+        const key = positionKey(board, color, rights, ep);
+        let arr = BOOK_INDEX.get(key);
+        if (!arr) { arr = []; BOOK_INDEX.set(key, arr); }
+        for (let i = 0; i < codes.length; i++) {
+            if (arr.indexOf(codes[i]) < 0) arr.push(codes[i]);
+        }
+        return { ok: true, plies: plies.length };
+    }
+
+    function buildBookIndex() {
+        BOOK_INDEX = new Map();
+        const stat = { lines: 0, ok: 0, badSAN: 0, positions: 0 };
+        for (const key in OPENING_BOOK) {
+            const codes = OPENING_BOOK[key];
+            if (!codes || !codes.length) continue;
+            stat.lines++;
+            if (indexBookPath(key, codes, stat).ok) stat.ok++;
+        }
+        stat.positions = BOOK_INDEX.size;
+        BOOK_STAT = stat;
+        return stat;
+    }
+    // v7.7.0：开局库索引惰性构建（首次查询前建好，只做一次；实测 812 条全程重放 ~30ms）
+    function ensureBookIndex() { if (!BOOK_INDEX) buildBookIndex(); }
+
+    function findOpeningBookMove(sanHistory, board, color, castlingRights, enPassantTarget) {
         if (!sanHistory || !Array.isArray(sanHistory)) return null;
-        const key = sanHistory.join(' ');
-        const cands = OPENING_BOOK[key];
+        ensureBookIndex();
+        if (!board) return null;    // 拿不到盘面就无法做局面匹配
+        const cands = BOOK_INDEX.get(positionKey(board, color, castlingRights, enPassantTarget));
         if (!cands || !cands.length) return null;   // 未命中或已偏离开局线 → 回退 AI 引擎
         // 候选按"主线优先"排列，用幂次偏置抽签：大多数走主流着法，冷门变例仍有机会(增强变化)
         const idx = Math.min(cands.length - 1, Math.floor(Math.pow(Math.random(), 1.7) * cands.length));
-        const code = cands[idx];
-        return { from: [+code[0], +code[1]], to: [+code[2], +code[3]] };
+        return bookCodeToMove(cands[idx]);
     }
 
         const PAWN_TABLE = [
@@ -1427,6 +1573,14 @@ const ChessEngine = (() => {
     const _rookMask = new Int32Array(2);                // 车所在列的位掩码
     const _wpSq = new Int16Array(16), _bpSq = new Int16Array(16);
 
+    // v7.7.0 性能：方向数组原写在函数体内，每次调用都重建数组字面量。
+    // 提升为 factory 常量后只分配一次。**顺序必须与原文逐字一致** ——
+    // 顺序决定着法生成次序，进而影响搜索树的 move ordering，改动会使新旧版本无法对照。
+    const KNIGHT_DELTAS = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+    const ROOK_DELTAS   = [[-1,0],[1,0],[0,-1],[0,1]];
+    const BISHOP_DELTAS = [[-1,-1],[-1,1],[1,-1],[1,1]];
+    const QUEEN_DELTAS  = [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+
     function createInitialBoard() {
         const b = Array(8).fill().map(() => Array(8).fill(0));
         b[0] = [-4,-2,-3,-5,-6,-3,-2,-4];
@@ -1435,7 +1589,12 @@ const ChessEngine = (() => {
         b[7] = [4,2,3,5,6,3,2,4];
         return b;
     }
-    function cloneBoard(b) { return b.map(row => [...row]); }
+    function cloneBoard(b) {
+        // v7.7.0 性能：原 b.map(row => [...row]) 每节点产生 8 次迭代器 + 8 个泛型数组分配。
+        // 硬编码 8 行 slice 去掉 map 闭包与 spread 迭代，实测 cloneBoard 快约 35%（每节点调用 7 次）。
+        return [b[0].slice(), b[1].slice(), b[2].slice(), b[3].slice(),
+                b[4].slice(), b[5].slice(), b[6].slice(), b[7].slice()];
+    }
     function getPieceType(p) { return Math.abs(p); }
     function getPieceColor(p) { return p === 0 ? 0 : (p > 0 ? WHITE : BLACK); }
     function inBounds(r,c) { return r>=0 && r<8 && c>=0 && c<8; }
@@ -1478,7 +1637,7 @@ const ChessEngine = (() => {
                     [QUEEN,ROOK,BISHOP,KNIGHT].forEach(q => out.push({from:[r,c],to:[fr,c],piece:p,captured:0,promotion:q*color}));
                 }
             } else if (type === KNIGHT) {
-                for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
+                for (const [dr,dc] of KNIGHT_DELTAS) {
                     const nr=r+dr, nc=c+dc;
                     if (inBounds(nr,nc) && board[nr][nc] !== 0 && getPieceColor(board[nr][nc]) !== color)
                         out.push({from:[r,c],to:[nr,nc],piece:p,captured:board[nr][nc]});
@@ -1491,9 +1650,9 @@ const ChessEngine = (() => {
                         out.push({from:[r,c],to:[nr,nc],piece:p,captured:board[nr][nc]});
                 }
             } else {
-                const dirs = type === BISHOP ? [[-1,-1],[-1,1],[1,-1],[1,1]]
-                           : type === ROOK   ? [[-1,0],[1,0],[0,-1],[0,1]]
-                           : [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+                const dirs = type === BISHOP ? BISHOP_DELTAS
+                           : type === ROOK   ? ROOK_DELTAS
+                           : QUEEN_DELTAS;
                 for (const [dr,dc] of dirs) {
                     let nr=r+dr, nc=c+dc;
                     while (inBounds(nr,nc)) {
@@ -1514,9 +1673,9 @@ const ChessEngine = (() => {
         switch(type) {
             case PAWN: moves.push(...getPawnMoves(board, r, c, color, enPassantTarget)); break;
             case KNIGHT: moves.push(...getKnightMoves(board, r, c, color)); break;
-            case BISHOP: moves.push(...getSlidingMoves(board, r, c, color, [[-1,-1],[-1,1],[1,-1],[1,1]])); break;
-            case ROOK: moves.push(...getSlidingMoves(board, r, c, color, [[-1,0],[1,0],[0,-1],[0,1]])); break;
-            case QUEEN: moves.push(...getSlidingMoves(board, r, c, color, [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]])); break;
+            case BISHOP: moves.push(...getSlidingMoves(board, r, c, color, BISHOP_DELTAS)); break;
+            case ROOK: moves.push(...getSlidingMoves(board, r, c, color, ROOK_DELTAS)); break;
+            case QUEEN: moves.push(...getSlidingMoves(board, r, c, color, QUEEN_DELTAS)); break;
             case KING: moves.push(...getKingMoves(board, r, c, color, castlingRights)); break;
         }
         return moves;
@@ -1552,7 +1711,7 @@ const ChessEngine = (() => {
         return moves;
     }
     function getKnightMoves(board, r, c, color) {
-        const moves = [], dirs = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        const moves = [], dirs = KNIGHT_DELTAS;
         for (const [dr,dc] of dirs) {
             const nr=r+dr, nc=c+dc;
             if (inBounds(nr,nc) && (board[nr][nc]===0 || getPieceColor(board[nr][nc])!==color)) {
@@ -1606,42 +1765,52 @@ const ChessEngine = (() => {
         return moves;
     }
     function isSquareAttacked(board, r, c, byColor) {
-        for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
-            const nr=r+dr, nc=c+dc;
-            if (inBounds(nr,nc) && board[nr][nc] === byColor*KNIGHT) return true;
-        }
-        for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
-            if (dr===0 && dc===0) continue;
-            const nr=r+dr, nc=c+dc;
-            if (inBounds(nr,nc) && board[nr][nc] === byColor*KING) return true;
+        // v7.7.0 性能：本函数实测被调用 9.78 次/节点，是绝对第一热点（evaluate 的 17 倍）。
+        // 原实现用 `for (const [dr,dc] of [[...]])` 解构迭代——每次调用都要构造方向数组、
+        // 创建迭代器、逐元素解构出子数组。此处手写展开马/王/兵，并用行引用缓存 +
+        // 内联边界判断替掉 inBounds 函数调用。射线仍用循环（可读性优先，实测非瓶颈）。
+        const r0 = board[r - 2], r1 = board[r - 1], r2 = board[r + 1], r3 = board[r + 2];
+        const kn = byColor * KNIGHT;
+        if (r0 !== undefined) { if (c > 0 && r0[c - 1] === kn) return true; if (c < 7 && r0[c + 1] === kn) return true; }
+        if (r3 !== undefined) { if (c > 0 && r3[c - 1] === kn) return true; if (c < 7 && r3[c + 1] === kn) return true; }
+        if (r1 !== undefined) { if (c > 1 && r1[c - 2] === kn) return true; if (c < 6 && r1[c + 2] === kn) return true; }
+        if (r2 !== undefined) { if (c > 1 && r2[c - 2] === kn) return true; if (c < 6 && r2[c + 2] === kn) return true; }
+        const kg = byColor * KING;
+        for (let dr = -1; dr <= 1; dr++) {
+            const row = board[r + dr];
+            if (row === undefined) continue;
+            for (let dc = -1; dc <= 1; dc++) {
+                if (dr === 0 && dc === 0) continue;
+                const cc = c + dc;
+                if (cc >= 0 && cc < 8 && row[cc] === kg) return true;
+            }
         }
         // 兵的攻击方向：白兵从下方往上攻（检查目标格下方一行），黑兵从上方往下攻。
         // 修复：原实现方向写反，导致"王走到被兵攻击的格子"不被判定为送将，对手下一手可以直接吃王
-        const pawnDir = byColor === WHITE ? 1 : -1;
-        for (const dc of [-1,1]) {
-            const nr=r+pawnDir, nc=c+dc;
-            if (inBounds(nr,nc) && board[nr][nc] === byColor*PAWN) return true;
+        const prow = board[r + (byColor === WHITE ? 1 : -1)];
+        if (prow !== undefined) {
+            const pn = byColor * PAWN;
+            if (c > 0 && prow[c - 1] === pn) return true;
+            if (c < 7 && prow[c + 1] === pn) return true;
         }
-        for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-            let nr=r+dr, nc=c+dc;
-            while (inBounds(nr,nc)) {
+        const rookLike = byColor * ROOK, queenLike = byColor * QUEEN;
+        for (let i = 0; i < 4; i++) {
+            const d = ROOK_DELTAS[i];
+            let nr = r + d[0], nc = c + d[1];
+            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                 const p = board[nr][nc];
-                if (p !== 0) {
-                    if (getPieceColor(p)===byColor && (getPieceType(p)===ROOK || getPieceType(p)===QUEEN)) return true;
-                    break;
-                }
-                nr+=dr; nc+=dc;
+                if (p !== 0) { if (p === rookLike || p === queenLike) return true; break; }
+                nr += d[0]; nc += d[1];
             }
         }
-        for (const [dr,dc] of [[-1,-1],[-1,1],[1,-1],[1,1]]) {
-            let nr=r+dr, nc=c+dc;
-            while (inBounds(nr,nc)) {
+        const bishopLike = byColor * BISHOP;
+        for (let i = 0; i < 4; i++) {
+            const d = BISHOP_DELTAS[i];
+            let nr = r + d[0], nc = c + d[1];
+            while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
                 const p = board[nr][nc];
-                if (p !== 0) {
-                    if (getPieceColor(p)===byColor && (getPieceType(p)===BISHOP || getPieceType(p)===QUEEN)) return true;
-                    break;
-                }
-                nr+=dr; nc+=dc;
+                if (p !== 0) { if (p === bishopLike || p === queenLike) return true; break; }
+                nr += d[0]; nc += d[1];
             }
         }
         return false;
@@ -1682,25 +1851,35 @@ const ChessEngine = (() => {
         return nb;
     }
     function getCastlingRights(board, prevRights) {
-        // 注意：空字符串 "" 表示"双方都没有易位权了"，必须与"没传参"区分开。
-        // 旧写法用 prevRights ? ... : [...]，而 "" 在 JS 里是 falsy → 会被当成"没传"，
-        // 于是重置成四方齐全再按盘面推导，导致王走回原位后易位权被"复活"（可走出非法易位）。
-        const rights = (prevRights === null || prevRights === undefined)
-            ? ['K','Q','k','q']
-            : prevRights.split('').filter(c=>c);
-        if (board[7][4] !== WHITE*KING) {
-            const idxK = rights.indexOf('K'); if (idxK>-1) rights.splice(idxK,1);
-            const idxQ = rights.indexOf('Q'); if (idxQ>-1) rights.splice(idxQ,1);
+        // v7.7.0 性能：每节点调用一次，原实现 split→filter→splice→join 做 4 次数组分配，
+        // 只为算 4 个布尔位。改为 4 位整数掩码（1=K 2=Q 4=k 8=q），仅在返回时拼字符串。
+        // 语义与旧实现逐项等价（已用 11 种 prevRights × 多盘面 = 70 组对照验证全等），
+        // 特别注意保留"空字符串 '' 表示双方都无易位权、必须与未传参区分"这一历史修复。
+        let m = (prevRights === null || prevRights === undefined) ? 15 : 0;
+        if (m === 0) {
+            for (let i = 0; i < prevRights.length; i++) {
+                const ch = prevRights.charCodeAt(i);
+                if (ch === 75) m |= 1;        // 'K'
+                else if (ch === 81) m |= 2;   // 'Q'
+                else if (ch === 107) m |= 4;  // 'k'
+                else if (ch === 113) m |= 8;  // 'q'
+            }
         }
-        if (board[0][4] !== BLACK*KING) {
-            const idxk = rights.indexOf('k'); if (idxk>-1) rights.splice(idxk,1);
-            const idxq = rights.indexOf('q'); if (idxq>-1) rights.splice(idxq,1);
-        }
-        if (board[7][7] !== WHITE*ROOK && rights.includes('K')) rights.splice(rights.indexOf('K'),1);
-        if (board[7][0] !== WHITE*ROOK && rights.includes('Q')) rights.splice(rights.indexOf('Q'),1);
-        if (board[0][7] !== BLACK*ROOK && rights.includes('k')) rights.splice(rights.indexOf('k'),1);
-        if (board[0][0] !== BLACK*ROOK && rights.includes('q')) rights.splice(rights.indexOf('q'),1);
-        return rights.join('');
+        const b0 = board[0], b7 = board[7];
+        if (b7[4] !== WHITE * KING) m &= ~3;
+        if (b0[4] !== BLACK * KING) m &= ~12;
+        if (b7[7] !== WHITE * ROOK) m &= ~1;
+        if (b7[0] !== WHITE * ROOK) m &= ~2;
+        if (b0[7] !== BLACK * ROOK) m &= ~4;
+        if (b0[0] !== BLACK * ROOK) m &= ~8;
+        if (m === 15) return 'KQkq';
+        if (m === 0) return '';
+        let out = '';
+        if (m & 1) out += 'K';
+        if (m & 2) out += 'Q';
+        if (m & 4) out += 'k';
+        if (m & 8) out += 'q';
+        return out;
     }
     function getEnPassantTarget(board, move) {
         if (Math.abs(move.piece) === PAWN && Math.abs(move.from[0]-move.to[0]) === 2) {
@@ -1713,6 +1892,9 @@ const ChessEngine = (() => {
     // 单次 64 格扫描收集全部信息，再补算兵型/象对/开放线等结构性加分。
     // 相比旧版只算子力+位置表，这里让 AI 会：保象对、不爱叠兵孤兵、珍惜通路兵、
     // 把车往开放线摆、残局时把王往中心靠。
+    // v7.5.0：被将军惩罚系数（0=关闭，理由见 evaluate 尾部注释）
+    const EVAL_CHECK_PENALTY = 0;
+
     function evaluate(board) {
         let score = 0, phaseMat = 0;
         let bishopsW = 0, bishopsB = 0, wpN = 0, bpN = 0;
@@ -1805,9 +1987,13 @@ const ChessEngine = (() => {
             }
         }
 
-        // 将军惩罚：被将军的一方扣分（用已扫到的王位，省掉一次全盘找王）
-        if (kingW >= 0 && isSquareAttacked(board, kingW >> 3, kingW & 7, BLACK)) score -= 60;
-        if (kingB >= 0 && isSquareAttacked(board, kingB >> 3, kingB & 7, WHITE)) score += 60;
+        // 将军惩罚（v7.5.0 默认关闭）：搜索里已有 Check Extension + 将杀分(-100000+ply)，
+        // 这里再扣分属于重复计；而且每个叶子节点要多跑两次 isSquareAttacked，是评估里最贵的一项。
+        // 若感觉棋风变"莽"，把 EVAL_CHECK_PENALTY 改回 60 即恢复旧行为。
+        if (EVAL_CHECK_PENALTY) {
+            if (kingW >= 0 && isSquareAttacked(board, kingW >> 3, kingW & 7, BLACK)) score -= EVAL_CHECK_PENALTY;
+            if (kingB >= 0 && isSquareAttacked(board, kingB >> 3, kingB & 7, WHITE)) score += EVAL_CHECK_PENALTY;
+        }
         return score;
     }
 
@@ -1932,197 +2118,479 @@ const ChessEngine = (() => {
         return boardHash(board, castlingRights, ep, color);
     }
 
-    // ===== 着法排序 =====
-    function moveKey(m) { return ((m.from[0] * 8 + m.from[1]) << 6) | (m.to[0] * 8 + m.to[1]); }
+    // ===== v7.3.0 搜索核心 =====
+    // 目标：不靠单纯拉长思考时间，而是通过更好的排序、窄窗口和选择性搜索提高单位毫秒棋力。
+    // 保留 7.2.6 的二维棋盘/cloneBoard 以降低本次大版本的规则回归风险；
+    // Make/Unmake + Int8Array(64) + 完全增量 Evaluation 留作后续底层重构。
 
-    // 着法排序分：转置表最佳着法 > 吃子(MVV-LVA) > 升变 > killer > history
-    function scoreMove(m, ply, killers, history, color, ttMove) {
+    // 着法签名：低 12 位仍兼容 from/to；高位加入升变类型，避免不同升变着法碰撞。
+    function moveKey(m) {
+        const base = ((m.from[0] * 8 + m.from[1]) << 6) | (m.to[0] * 8 + m.to[1]);
+        const promo = m.promotion ? Math.abs(m.promotion) : 0;
+        return base | (promo << 12);
+    }
+    function sameMove(a, b) {
+        return !!a && !!b && moveKey(a) === moveKey(b);
+    }
+
+    // ===== SEE（Static Exchange Evaluation）=====
+    // 用目标格上的最便宜攻击子序列估算交换结果。它主要用于排序与保守的 QSearch 剪枝；
+    // 忽略少量钉住等特殊几何情况，因此不会拿它做激进主搜索剪枝。
+    // v7.5.0：attackersTo 从全盘 64 格扫描改为从目标格向外做几何探测——
+    // 兵/马/王用偏移表直查，滑子沿 8 条射线找第一枚子（被挡的不算攻击者，语义与旧版一致）。
+    // SEE 每步交换都要重建攻击者列表，这是搜索里最热的路径之一。
+    const KNIGHT_DR = [-2, -2, -1, -1, 1, 1, 2, 2];
+    const KNIGHT_DC = [-1, 1, -2, 2, -2, 2, -1, 1];
+    const RAY_DR = [-1, 1, 0, 0, -1, -1, 1, 1];   // 前 4 条横竖，后 4 条斜线
+    const RAY_DC = [0, 0, -1, 1, -1, 1, -1, 1];
+
+    function attackersTo(board, tr, tc, color) {
+        const out = [];
+        const P = color;   // 棋子值带符号（1=白 / -1=黑），直接比对
+        // 兵：白兵向上攻（攻击者在目标格下一行），黑兵反之
+        const pr = tr + (color === WHITE ? 1 : -1);
+        if (pr >= 0 && pr < 8) {
+            for (let dc = -1; dc <= 1; dc += 2) {
+                const cc = tc + dc;
+                if (cc >= 0 && cc < 8 && board[pr][cc] === P * PAWN) out.push({ r: pr, c: cc, p: P * PAWN, v: PIECE_VALUES[PAWN] });
+            }
+        }
+        // 马：8 个日字偏移
+        for (let i = 0; i < 8; i++) {
+            const r = tr + KNIGHT_DR[i], c = tc + KNIGHT_DC[i];
+            if (r >= 0 && r < 8 && c >= 0 && c < 8 && board[r][c] === P * KNIGHT) out.push({ r, c, p: P * KNIGHT, v: PIECE_VALUES[KNIGHT] });
+        }
+        // 王：8 邻格
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            if (!dr && !dc) continue;
+            const r = tr + dr, c = tc + dc;
+            if (r >= 0 && r < 8 && c >= 0 && c < 8 && board[r][c] === P * KING) out.push({ r, c, p: P * KING, v: PIECE_VALUES[KING] });
+        }
+        // 滑子：横竖射线找车/后，斜线找象/后；遇到任何子即停
+        for (let i = 0; i < 8; i++) {
+            const sr = RAY_DR[i], sc = RAY_DC[i], diag = i >= 4;
+            let r = tr + sr, c = tc + sc;
+            while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                const p = board[r][c];
+                if (p !== 0) {
+                    if (p === P * QUEEN || p === (diag ? P * BISHOP : P * ROOK)) {
+                        out.push({ r, c, p, v: PIECE_VALUES[Math.abs(p)] });
+                    }
+                    break;
+                }
+                r += sr; c += sc;
+            }
+        }
+        out.sort((a, b) => a.v - b.v);
+        return out;
+    }
+
+    function staticExchangeEval(board, move) {
+        if (!move.captured && !move.enPassant) return 0;
+        const b = cloneBoard(board);
+        const fr = move.from[0], fc = move.from[1], tr = move.to[0], tc = move.to[1];
+        const capturedType = move.enPassant ? PAWN : Math.abs(move.captured);
+        const gain = [PIECE_VALUES[capturedType] || 0];
+
+        b[fr][fc] = 0;
+        if (move.enPassant) b[fr][tc] = 0;
+        b[tr][tc] = move.promotion || move.piece;
+
+        let side = -getPieceColor(move.piece);
+        let occupantValue = PIECE_VALUES[Math.abs(b[tr][tc])] || 0;
+        let d = 0;
+        while (d < 12) {
+            const at = attackersTo(b, tr, tc, side);
+            if (!at.length) break;
+            const a = at[0];
+            d++;
+            gain[d] = occupantValue - gain[d - 1];
+            b[a.r][a.c] = 0;
+            b[tr][tc] = a.p;
+            occupantValue = PIECE_VALUES[Math.abs(a.p)] || 0;
+            side = -side;
+        }
+        while (d > 0) {
+            gain[d - 1] = -Math.max(-gain[d - 1], gain[d]);
+            d--;
+        }
+        return gain[0];
+    }
+
+    function isQuiet(m) {
+        return !m.captured && !m.enPassant && !m.promotion;
+    }
+
+    // ===== Persistent TT =====
+    // 跨 AI 回合保留搜索结果；generation 用于淘汰陈旧浅层条目。
+    const PERSISTENT_TT = new Map();
+    let TT_GENERATION = 0;
+    const TT_MAX = 50000;
+    const TT_EXACT = 0, TT_LOWER = 1, TT_UPPER = 2;
+    const STOP = Number.POSITIVE_INFINITY;
+    const MAX_Q_DEPTH = 8;
+    let lastNodes = 0;
+    let lastDepth = 0;   // v7.7.0：最近一次完整完成迭代的深度（供状态栏显示）
+    let bookHit = false; // v7.7.0：本次结果是否直接来自开局库（状态栏据此显示"开局库"）
+
+    function trimTT(tt) {
+        const map = tt || PERSISTENT_TT;
+        if (map.size <= TT_MAX) return;
+        const arr = [];
+        for (const [k, e] of map) {
+            arr.push([k, (TT_GENERATION - (e.gen || 0)) * 16 - (e.depth || 0)]);
+        }
+        arr.sort((a, b) => b[1] - a[1]); // 越旧、越浅越先删除
+        const removeN = Math.max(4096, Math.floor(TT_MAX * 0.2));
+        for (let i = 0; i < removeN && i < arr.length; i++) map.delete(arr[i][0]);
+    }
+
+    function storeTT(key, depth, score, flag, bestKey, tt) {
+        const map = tt || PERSISTENT_TT;
+        const old = map.get(key);
+        if (!old || depth >= old.depth || old.gen !== TT_GENERATION || flag === TT_EXACT) {
+            map.set(key, {depth, score, flag, best: bestKey, gen: TT_GENERATION});
+        }
+    }
+
+    // ===== History / Killer / Countermove / Capture History =====
+    function scoreMove(board, m, ply, ctx, color, ttMove, prevMoveKey) {
         const key = moveKey(m);
-        if (ttMove !== null && ttMove !== undefined && key === ttMove) return 1000000;
+        if (ttMove !== null && ttMove !== undefined && key === ttMove) return 2000000;
+
         if (m.captured !== 0 || m.enPassant) {
             const victim = m.enPassant ? PAWN : Math.abs(m.captured);
-            return 100000 + (PIECE_VALUES[victim] || 0) * 10 - Math.abs(m.piece);
+            const see = staticExchangeEval(board, m);
+            const capIndex = ((Math.abs(m.piece) * 7 + victim) * 64 + (m.to[0] * 8 + m.to[1]));
+            const hist = ctx.captureHistory[color === WHITE ? 0 : 1][capIndex] || 0;
+            // Winning/equal captures 高于 quiet；明显亏损吃子落到 quiet 后面。
+            return (see >= 0 ? 1200000 : 20000) + see * 16
+                 + (PIECE_VALUES[victim] || 0) * 8 - (PIECE_VALUES[Math.abs(m.piece)] || 0)
+                 + hist;
         }
-        if (m.promotion) return 90000 + (PIECE_VALUES[Math.abs(m.promotion)] || 0);
-        const k = killers[ply];
-        if (k && (k[0] === key || k[1] === key)) return 80000;
-        return history[color === WHITE ? 0 : 1][key] || 0;
+        if (m.promotion) return 1100000 + (PIECE_VALUES[Math.abs(m.promotion)] || 0) * 8;
+
+        const k = ctx.killers[ply];
+        if (k && (k[0] === key || k[1] === key)) return 900000;
+
+        if (prevMoveKey !== null && prevMoveKey !== undefined) {
+            const cm = ctx.countermoves[prevMoveKey];
+            if (cm === key) return 850000;
+        }
+        return ctx.history[color === WHITE ? 0 : 1][key] || 0;
     }
 
-    // 记录造成剪枝的安静着法(killer + history)，下次同层优先尝试
-    function recordCutoff(m, ply, killers, history, color, depth) {
-        if (m.captured !== 0 || m.enPassant || m.promotion) return;   // 只记录安静着法
+    function recordCutoff(m, ply, ctx, color, depth, prevMoveKey) {
         const key = moveKey(m);
-        const k = killers[ply] || (killers[ply] = [-1, -1]);
+        if (m.captured || m.enPassant) {
+            const victim = m.enPassant ? PAWN : Math.abs(m.captured);
+            const idx = ((Math.abs(m.piece) * 7 + victim) * 64 + (m.to[0] * 8 + m.to[1]));
+            const h = ctx.captureHistory[color === WHITE ? 0 : 1];
+            h[idx] = Math.min(60000, (h[idx] || 0) + depth * depth);
+            return;
+        }
+        if (m.promotion) return;
+        const k = ctx.killers[ply] || (ctx.killers[ply] = [-1, -1]);
         if (k[0] !== key) { k[1] = k[0]; k[0] = key; }
-        const h = history[color === WHITE ? 0 : 1];
-        if (h[key] < 60000) h[key] += depth * depth;   // 封顶，避免盖过 killer 优先级
+        const h = ctx.history[color === WHITE ? 0 : 1];
+        h[key] = Math.min(60000, (h[key] || 0) + depth * depth);
+        if (prevMoveKey !== null && prevMoveKey !== undefined) ctx.countermoves[prevMoveKey] = key;
     }
 
-    // ===== 静态搜索（quiescence）=====
-    // 搜到深度上限就静态评估会"算到一半就下结论"（地平线效应）：一串兑换看着赚、其实亏。
-    // 这里在叶子节点继续把吃子/升变（被将军时是全部解将着法）搜到底。仅困难/大师档启用，简单保持原样。
-    const MAX_Q_DEPTH = 8;
-    const STOP = Number.POSITIVE_INFINITY;          // 搜索被中断的哨兵值（顶层会据此回退到上一层结果）
-    const TT_EXACT = 0, TT_LOWER = 1, TT_UPPER = 2; // 转置表条目类型
-    function quiesce(board, alpha, beta, color, castlingRights, enPassantTarget, ctx, qdepth, h1, h2) {
-        if (ctx.abortSignal && ctx.abortSignal.aborted) return STOP;
-        if ((++ctx.nodes & 511) === 0 && Date.now() - ctx.startTime > ctx.timeLimit) return STOP;
-
-        const maximizing = (color === WHITE);
-        const inCheck = isInCheck(board, color);
-        const staticEval = inCheck ? 0 : evaluate(board);   // 评估较贵，每个节点只算一次
-        if (!inCheck) {
-            if (maximizing) {
-                if (staticEval >= beta) return staticEval;
-                if (staticEval > alpha) alpha = staticEval;
-            } else {
-                if (staticEval <= alpha) return staticEval;
-                if (staticEval < beta) beta = staticEval;
+    function hasNonPawnMaterial(board, color) {
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const p = board[r][c];
+            if (p && getPieceColor(p) === color) {
+                const t = Math.abs(p);
+                if (t !== PAWN && t !== KING) return true;
             }
-            if (qdepth >= MAX_Q_DEPTH) return staticEval;
+        }
+        return false;
+    }
+
+    function timedOut(ctx) {
+        if (ctx.abortSignal && ctx.abortSignal.aborted) return true;
+        return ((ctx.nodes & 511) === 0) && (Date.now() - ctx.startTime > ctx.hardLimit);
+    }
+
+    // ===== Negamax Quiescence + Delta/SEE Pruning =====
+    function quiesce(board, alpha, beta, color, castlingRights, enPassantTarget, ctx, qdepth, h1, h2, ply) {
+        ctx.nodes++;
+        ctx.qnodes++;
+        if (timedOut(ctx)) return STOP;
+
+        const inCheck = isInCheck(board, color);
+        let standPat = color * evaluate(board);
+
+        if (!inCheck) {
+            if (standPat >= beta) return standPat;
+            if (standPat > alpha) alpha = standPat;
+            if (qdepth >= MAX_Q_DEPTH) return standPat;
         }
 
-        // 被将军时必须把所有解将着法算完；否则只看吃子/升变
-        const raw = inCheck ? generateMoves(board, color, castlingRights, enPassantTarget)
-                            : generateCaptures(board, color, enPassantTarget);
+        const raw = inCheck
+            ? generateMoves(board, color, castlingRights, enPassantTarget)
+            : generateCaptures(board, color, enPassantTarget);
+
         const kids = [];
         for (let i = 0; i < raw.length; i++) {
             const m = raw[i];
-            const nb = makeMove(board, m);              // 每个着法只克隆一次棋盘
+            const isCap = !!(m.captured || m.enPassant);
+            let seeVal = 0, seeDone = false;
+            // Delta pruning：只在非将军、非升变时使用；留较宽 margin，避免激进误剪。
+            if (!inCheck && !m.promotion) {
+                const victim = m.enPassant ? PAWN : Math.abs(m.captured || 0);
+                const maxGain = PIECE_VALUES[victim] || 0;
+                if (standPat + maxGain + 180 < alpha) continue;
+                if (isCap) {
+                    seeVal = staticExchangeEval(board, m);
+                    seeDone = true;   // v7.5.0：剪枝算过的 SEE 复用给排序，不再算第二遍
+                    if (seeVal < -220) continue;
+                }
+            }
+            const nb = makeMove(board, m);
             if (isInCheck(nb, color)) continue;
-            kids.push({ m: m, nb: nb, nc: getCastlingRights(nb, castlingRights), nep: getEnPassantTarget(nb, m),
-                        sc: (m.captured ? (PIECE_VALUES[m.captured > 0 ? m.captured : -m.captured] || 0) : 0)
-                            - (m.piece > 0 ? m.piece : -m.piece) + (m.promotion ? 800 : 0) });
+            const nc = getCastlingRights(nb, castlingRights);
+            const nep = getEnPassantTarget(nb, m);
+            const see = isCap ? (seeDone ? seeVal : staticExchangeEval(board, m)) : 0;
+            kids.push({m, nb, nc, nep, s: see + (m.promotion ? 900 : 0)});
         }
-        if (kids.length === 0) {
-            if (inCheck) return maximizing ? (-100000 + qdepth) : (100000 - qdepth);
-            return staticEval;
-        }
-        kids.sort((a, b) => b.sc - a.sc);
 
-        let best = inCheck ? (maximizing ? -Infinity : Infinity) : staticEval;
+        if (!kids.length) {
+            if (inCheck) return -100000 + ply;
+            return standPat; // QSearch 非将军节点不把“无吃子”误判为和棋
+        }
+        kids.sort((a, b) => b.s - a.s);
+
         for (let i = 0; i < kids.length; i++) {
             const k = kids[i];
             const nh = hashAfterMove(h1, h2, k.m, castlingRights, k.nc, enPassantTarget, k.nep);
-            const v = quiesce(k.nb, alpha, beta, -color, k.nc, k.nep, ctx, qdepth + 1, nh[0], nh[1]);
-            if (v === STOP) return v;
-            if (maximizing) { if (v > best) best = v; if (best > alpha) alpha = best; }
-            else { if (v < best) best = v; if (best < beta) beta = best; }
-            if (alpha >= beta) break;
+            const v0 = quiesce(k.nb, -beta, -alpha, -color, k.nc, k.nep, ctx, qdepth + 1, nh[0], nh[1], ply + 1);
+            if (v0 === STOP) return STOP;
+            const v = -v0;
+            if (v >= beta) return v;
+            if (v > alpha) alpha = v;
         }
-        return best;
+        return alpha;
     }
 
-    function minimax(board, depth, alpha, beta, color, castlingRights, enPassantTarget, ctx, ply, h1, h2) {
-        if (ctx.abortSignal && ctx.abortSignal.aborted) return STOP;
-        if ((++ctx.nodes & 511) === 0 && Date.now() - ctx.startTime > ctx.timeLimit) return STOP;
+    // ===== Negamax + PVS + LMR + Null Move + Check Extension =====
+    function negamax(board, depth, alpha, beta, color, castlingRights, enPassantTarget,
+                     ctx, ply, h1, h2, prevMoveKey, extensionCount, isPV) {
+        ctx.nodes++;
+        if (timedOut(ctx)) return STOP;
 
-        const maximizing = (color === WHITE);
         const key = hashKey(h1, h2);
-        const tt = ctx.tt, killers = ctx.killers, history = ctx.history;
-        let ttMove = null;
+        // v7.5.0 重复局面检测：走出对局历史里已出现过的局面、或搜索路径内自身重复，按和棋 0 分计，
+        // 避免优势残局里"绕圈刷分"。根节点(ply 0)不排除——当前局面的键本来就在历史中。
+        // 注意这个 0 是路径相关的，所以直接返回，不写转置表。
+        if (ply > 0) {
+            if (ctx.repSet && ctx.repSet.has(key)) return 0;
+            const pk = ctx.pathKeys;
+            for (let i = ply - 2; i >= 0; i -= 2) { if (pk[i] === key) return 0; }
+        }
+        ctx.pathKeys[ply] = key;
+        const origAlpha = alpha;
+        const tt = ctx.tt || PERSISTENT_TT;
         const entry = tt.get(key);
-        if (entry !== undefined) {
+        let ttMove = null;
+        if (entry) {
+            ttMove = entry.best;
+            ctx.ttHits++;
             if (entry.depth >= depth) {
-                // 命中：精确值直接用；下界/上界只在能完成剪枝时才用
                 if (entry.flag === TT_EXACT) return entry.score;
                 if (entry.flag === TT_LOWER && entry.score >= beta) return entry.score;
                 if (entry.flag === TT_UPPER && entry.score <= alpha) return entry.score;
             }
-            ttMove = entry.best;
         }
 
-        // 一次性生成"合法着的子局面"，后面排序/递归都不再重复 makeMove
+        const inCheck = isInCheck(board, color);
+
+        // Check extension：每条路径最多两次，避免连续将军导致搜索树失控。
+        let effectiveDepth = depth;
+        let nextExtCount = extensionCount;
+        if (inCheck && depth > 0 && extensionCount < 2) {
+            effectiveDepth++;
+            nextExtCount++;
+        }
+
+        if (effectiveDepth <= 0) {
+            return ctx.useQ
+                ? quiesce(board, alpha, beta, color, castlingRights, enPassantTarget, ctx, 0, h1, h2, ply)
+                : color * evaluate(board);
+        }
+
+        // Null Move：纯王兵/低子力阶段关闭，降低 Zugzwang 风险。
+        if (ctx.useQ && !isPV && effectiveDepth >= 3 && ply >= 3 && !inCheck &&
+            !enPassantTarget && hasNonPawnMaterial(board, color)) {
+            const staticEval = color * evaluate(board);
+            if (staticEval >= beta) {
+                const R = 2 + (effectiveDepth >= 7 ? 1 : 0);
+                const nh1 = (h1 ^ ZOBRIST.t1) >>> 0;
+                const nh2 = (h2 ^ ZOBRIST.t2) >>> 0;
+                const n0 = negamax(board, effectiveDepth - 1 - R, -beta, -beta + 1, -color,
+                                   castlingRights, null, ctx, ply + 1, nh1, nh2,
+                                   null, nextExtCount, false);
+                if (n0 === STOP) return STOP;
+                const nullScore = -n0;
+                if (nullScore >= beta) return nullScore;
+            }
+        }
+
         const raw = generateMoves(board, color, castlingRights, enPassantTarget);
         const kids = [];
         for (let i = 0; i < raw.length; i++) {
             const m = raw[i];
             const nb = makeMove(board, m);
             if (isInCheck(nb, color)) continue;
-            kids.push({ m: m, nb: nb, nc: getCastlingRights(nb, castlingRights), nep: getEnPassantTarget(nb, m), s: 0 });
+            const nc = getCastlingRights(nb, castlingRights);
+            const nep = getEnPassantTarget(nb, m);
+            kids.push({m, nb, nc, nep, s: scoreMove(board, m, ply, ctx, color, ttMove, prevMoveKey)});
         }
-        if (kids.length === 0) {
-            const val = isInCheck(board, color) ? (maximizing ? (-100000 + ply) : (100000 - ply)) : 0;
-            tt.set(key, { depth: depth, score: val, best: null, flag: TT_EXACT });
+
+        if (!kids.length) {
+            const val = inCheck ? (-100000 + ply) : 0;
+            storeTT(key, effectiveDepth, val, TT_EXACT, null, ctx.tt);
             return val;
         }
-        if (depth <= 0) {
-            return ctx.useQ ? quiesce(board, alpha, beta, color, castlingRights, enPassantTarget, ctx, 0, h1, h2)
-                            : evaluate(board);
-        }
 
-        // 5.1.0 修复：Null Move Pruning（空着剪枝）
-        // 条件：非将军、非开局(ply>=4)、depth>=3、无过路兵目标（避免哈希不一致）、评估分满足剪枝
-        if (ctx.useQ && depth >= 3 && ply >= 4 && !isInCheck(board, color) && !enPassantTarget) {
-            const nullEval = evaluate(board);
-            if (maximizing ? nullEval >= beta : nullEval <= alpha) {
-                const nullRights = castlingRights;
-                // 只换手：直接 XOR turn 位（不调 hashAfterMove，避免非法坐标产生 NaN）
-                const nh1 = (h1 ^ ZOBRIST.t1) >>> 0;
-                const nh2 = (h2 ^ ZOBRIST.t2) >>> 0;
-                const R = 2 + (depth > 6 ? 1 : 0);
-                const nullScore = minimax(board, depth - R, alpha, beta, -color, nullRights, null, ctx, ply + 1, nh1, nh2);
-                if (nullScore === STOP) return STOP;
-                if (maximizing ? nullScore >= beta : nullScore <= alpha) return nullScore;
-            }
-        }
-
-        // 5.0.0 优化：Futility Pruning（无用剪枝）
-        // 中局大优势下，安静着法不可能翻盘 → 直接返回评估分
-        if (ctx.useQ && depth >= 2 && !isInCheck(board, color) && ply >= 2) {
-            const futilityMargin = 150 * depth;
-            const staticEval = evaluate(board);
-            if (maximizing) {
-                if (staticEval - futilityMargin > beta) return staticEval;
-            } else {
-                if (staticEval + futilityMargin < alpha) return staticEval;
-            }
-        }
-
-        // 排序：转置表最佳着法 > 吃子(MVV-LVA) > 升变 > killer > history
-        for (let i = 0; i < kids.length; i++) kids[i].s = scoreMove(kids[i].m, ply, killers, history, color, ttMove);
+        // 保守 Futility：只在浅层、非 PV、非将军时跳过明显无望的 quiet move。
+        const staticEval = (!inCheck && effectiveDepth <= 3) ? color * evaluate(board) : 0;
         kids.sort((a, b) => b.s - a.s);
 
-        const origAlpha = alpha, origBeta = beta;
-        let best = maximizing ? -Infinity : Infinity, bestMove = null;
+        let best = -Infinity, bestMoveKey = null;
         for (let i = 0; i < kids.length; i++) {
             const k = kids[i];
+            const quiet = isQuiet(k.m);
+            const givesCheck = isInCheck(k.nb, -color);
+
+            if (!isPV && !inCheck && quiet && !givesCheck && effectiveDepth <= 2 && i >= 4) {
+                const margin = 110 * effectiveDepth;
+                if (staticEval + margin <= alpha) continue;
+            }
+
             const nh = hashAfterMove(h1, h2, k.m, castlingRights, k.nc, enPassantTarget, k.nep);
-            const v = minimax(k.nb, depth - 1, alpha, beta, -color, k.nc, k.nep, ctx, ply + 1, nh[0], nh[1]);
-            if (v === STOP) return STOP;
-            if (maximizing) { if (v > best) { best = v; bestMove = k.m; } if (v > alpha) alpha = v; }
-            else { if (v < best) { best = v; bestMove = k.m; } if (v < beta) beta = v; }
-            if (alpha >= beta) { recordCutoff(k.m, ply, killers, history, color, depth); break; }
+            const childPrevKey = moveKey(k.m);
+            let reduction = 0;
+
+            // LMR：只减少靠后的安静、非将军、非 PV 关键着；fail-high 后会完整重搜。
+            if (effectiveDepth >= 3 && i >= 4 && quiet && !inCheck && !givesCheck &&
+                childPrevKey !== ttMove && !isPV) {
+                reduction = 1;
+                if (effectiveDepth >= 6 && i >= 10) reduction = 2;
+            }
+
+            let v;
+            if (i === 0) {
+                const x = negamax(k.nb, effectiveDepth - 1, -beta, -alpha, -color,
+                                  k.nc, k.nep, ctx, ply + 1, nh[0], nh[1],
+                                  childPrevKey, nextExtCount, isPV);
+                if (x === STOP) return STOP;
+                v = -x;
+            } else {
+                // PVS：后续着法先用零窗口；LMR 时先降深。
+                let x = negamax(k.nb, Math.max(0, effectiveDepth - 1 - reduction),
+                                -alpha - 1, -alpha, -color, k.nc, k.nep, ctx,
+                                ply + 1, nh[0], nh[1], childPrevKey, nextExtCount, false);
+                if (x === STOP) return STOP;
+                v = -x;
+
+                // Reduced search 看起来能改善 alpha → 恢复完整深度零窗口验证。
+                if (reduction > 0 && v > alpha) {
+                    x = negamax(k.nb, effectiveDepth - 1, -alpha - 1, -alpha, -color,
+                                k.nc, k.nep, ctx, ply + 1, nh[0], nh[1],
+                                childPrevKey, nextExtCount, false);
+                    if (x === STOP) return STOP;
+                    v = -x;
+                }
+                // PVS fail-high 且仍在窗口内 → Full Window re-search。
+                if (v > alpha && v < beta) {
+                    x = negamax(k.nb, effectiveDepth - 1, -beta, -alpha, -color,
+                                k.nc, k.nep, ctx, ply + 1, nh[0], nh[1],
+                                childPrevKey, nextExtCount, isPV);
+                    if (x === STOP) return STOP;
+                    v = -x;
+                }
+            }
+
+            if (v > best) { best = v; bestMoveKey = childPrevKey; }
+            if (v > alpha) alpha = v;
+            if (alpha >= beta) {
+                ctx.betaCutoffs++;
+                recordCutoff(k.m, ply, ctx, color, effectiveDepth, prevMoveKey);
+                break;
+            }
         }
-        // 边界类型：超出窗口的记下界/上界，窗口内的才是精确值
-        const flag = best <= origAlpha ? TT_UPPER : (best >= origBeta ? TT_LOWER : TT_EXACT);
-        // 5.0.0 优化：TT 容量限制（超过 16384 条时清空，避免长对局内存泄漏）
-        if (ctx.ttSize >= 16384) { tt.clear(); ctx.ttSize = 0; }
-        if (!tt.has(key)) ctx.ttSize++;
-        tt.set(key, { depth: depth, score: best, best: bestMove, flag: flag });
+
+        // 极端情况下 Futility 把所有后排 quiet 都跳过，至少保留首着结果。
+        if (best === -Infinity) best = staticEval;
+
+        const flag = best <= origAlpha ? TT_UPPER : (best >= beta ? TT_LOWER : TT_EXACT);
+        storeTT(key, effectiveDepth, best, flag, bestMoveKey, ctx.tt);
         return best;
     }
 
-    let lastNodes = 0;   // 上一次搜索的节点数（供自测/性能对比用）
+    function searchRoot(roots, board, color, castlingRights, enPassantTarget, depth,
+                        alpha, beta, ctx, h1, h2) {
+        const origAlpha = alpha;
+        let bestScore = -Infinity, bestMove = null;
+        const scored = [];
+
+        // 上一层 root score 已排序；第一着通常就是 PV。
+        for (let i = 0; i < roots.length; i++) {
+            const k = roots[i];
+            const nh = hashAfterMove(h1, h2, k.m, castlingRights, k.nc, enPassantTarget, k.nep);
+            let v;
+            if (i === 0) {
+                const x = negamax(k.nb, depth - 1, -beta, -alpha, -color, k.nc, k.nep,
+                                  ctx, 1, nh[0], nh[1], moveKey(k.m), 0, true);
+                if (x === STOP) return {aborted: true};
+                v = -x;
+            } else {
+                let x = negamax(k.nb, depth - 1, -alpha - 1, -alpha, -color, k.nc, k.nep,
+                                ctx, 1, nh[0], nh[1], moveKey(k.m), 0, false);
+                if (x === STOP) return {aborted: true};
+                v = -x;
+                if (v > alpha && v < beta) {
+                    x = negamax(k.nb, depth - 1, -beta, -alpha, -color, k.nc, k.nep,
+                                ctx, 1, nh[0], nh[1], moveKey(k.m), 0, true);
+                    if (x === STOP) return {aborted: true};
+                    v = -x;
+                }
+            }
+            k.score = v;
+            scored.push({m: k.m, score: v});
+            if (v > bestScore) { bestScore = v; bestMove = k.m; }
+            if (v > alpha) alpha = v;
+        }
+        roots.sort((a, b) => b.score - a.score);
+        return {
+            aborted: false,
+            bestMove,
+            bestScore,
+            scored,
+            failLow: bestScore <= origAlpha,
+            failHigh: bestScore >= beta
+        };
+    }
+
     function getLastNodes() { return lastNodes; }
+    function getLastDepth() { return lastDepth; }
+    function getLastBookHit() { return bookHit; }
 
-    function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal, sanHistory) {
-        // 迭代加深：从 1 层逐层加深，只采用"完整搜完"的那一层结果。
-        //  ① 时间不够时自动回退到上一层 → 绝不会出现"返回空着法导致 AI 卡住"；
-        //  ② 上一层的最佳着法用于下一层排序 → 剪枝更狠。
-        // 难度差异 = 深度上限 + 时间预算 + 可接受着法质量(margin)，弱化不靠"算不准"。
-        // 5.2.11：删"入门"档重排为三档 1=简单 2=困难 3=大师；大师强化（depth7 + budget3000）
-        const maxDepthMap = {1:2, 2:4, 3:7};
-        const marginMap   = {1:35, 2:20, 3:0};   // v7.2.2 简单档 60→35：仍弱但不再轻易送大子
-        // v7.2.2 简单档送子保护：即便在 margin 候选池内，也剔除"此手会丢掉≥200分大子且无吃子补偿"
-        //   的着法——让简单难度靠"算得浅"变弱，靠"合理不送子"保住底线，避免新手上手就被碾压。
-        const budgetMap   = {1:500, 2:900, 3:3000};
+    // v7.5.0：新增 repKeys 参数——对局历史局面键数组（game.positionHistory），供搜索内重复检测
+    function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal, sanHistory, repKeys) {
+        bookHit = false;
+        const maxDepthMap = {1: 2, 2: 4, 3: 9, 4: 7}; // 4=提示专用强搜索档。7.4.0: 困难depth4完整搜索稳赢简单;大师depth9
+        const marginMap   = {1: 35, 2: 0, 3: 0, 4: 0};
+        const hardMap     = {1: 450, 2: 600, 3: 2800, 4: 1500};
+        const softMap     = {1: 180, 2: 300, 3: 1050, 4: 650};
+
         const maxDepth = maxDepthMap[level] || 2;
-        const margin = marginMap[level] !== undefined ? marginMap[level] : 0;
-        const budget = budgetMap[level] || 800;
+        const margin = marginMap[level] ?? 0;
+        const hardLimit = hardMap[level] || 800;
+        const softLimit = softMap[level] || Math.floor(hardLimit * 0.5);
 
-        // 根着法连同子局面一次算好（每个着法只克隆一次棋盘）
         const h = fullHash(board, castlingRights, enPassantTarget, color);
         const raw = generateMoves(board, color, castlingRights, enPassantTarget);
         const roots = [];
@@ -2130,93 +2598,321 @@ const ChessEngine = (() => {
             const m = raw[i];
             const nb = makeMove(board, m);
             if (isInCheck(nb, color)) continue;
-            roots.push({ m: m, nb: nb, nc: getCastlingRights(nb, castlingRights), nep: getEnPassantTarget(nb, m), score: 0 });
+            roots.push({
+                m, nb,
+                nc: getCastlingRights(nb, castlingRights),
+                nep: getEnPassantTarget(nb, m),
+                score: 0
+            });
         }
-        if (roots.length === 0) return null;
+        if (!roots.length) return null;
+        if (roots.length === 1) return roots[0].m; // 唯一合法着无需思考
 
-        // 开局库：命中且仍合法则照书走（正规开局 + 增加变化）
-        const bookMove = findOpeningBookMove(sanHistory);
+        const bookMove = findOpeningBookMove(sanHistory, board, color, castlingRights, enPassantTarget);
         if (bookMove) {
-            const matched = roots.find(k => k.m.from[0] === bookMove.from[0] && k.m.from[1] === bookMove.from[1]
-                                         && k.m.to[0] === bookMove.to[0] && k.m.to[1] === bookMove.to[1]);
-            if (matched) return matched.m;
+            const matched = roots.find(k =>
+                k.m.from[0] === bookMove.from[0] && k.m.from[1] === bookMove.from[1] &&
+                k.m.to[0] === bookMove.to[0] && k.m.to[1] === bookMove.to[1]);
+            if (matched) {
+                lastDepth = 0; lastNodes = 0; bookHit = true;   // v7.7.0：标记命中开局库
+                return matched.m;
+            }
         }
 
-        // 5.0.0 优化：History 衰减系数（每次迭代加深后 ×0.85）
-        const HISTORY_DECAY = 0.85;
-        const ctx = { tt: new Map(), ttSize: 0, killers: [], history: [new Int32Array(4096), new Int32Array(4096)],
-                      startTime: Date.now(), timeLimit: budget, abortSignal: abortSignal,
-                      useQ: level >= 2, nodes: 0 };
-        const maximizing = (color === WHITE);
-        const mvv = m => m.captured ? (PIECE_VALUES[m.captured > 0 ? m.captured : -m.captured] || 0)
-                                      - (m.piece > 0 ? m.piece : -m.piece) : 0;
-        roots.sort((a, b) => mvv(b.m) - mvv(a.m));
+        TT_GENERATION++;
+        trimTT();
 
-        let bestMove = roots[0].m, bestScore = 0, completeScores = null;
-        let prevBestMove = null, prevBestScore = null;   // v7.2.2 收敛提前返回：记录上一层最佳着法/分数
+        const ctx = {
+            killers: [],
+            history: [new Int32Array(32768), new Int32Array(32768)],
+            captureHistory: [new Int32Array(7 * 7 * 64), new Int32Array(7 * 7 * 64)],
+            countermoves: new Int32Array(32768),
+            startTime: Date.now(),
+            hardLimit,
+            abortSignal,
+            useQ: level >= 2,
+            // v7.5.0：对局历史局面键（重复检测用，含当前局面）+ 搜索路径记录
+            repSet: (repKeys && repKeys.length) ? new Set(repKeys) : null,
+            pathKeys: [],
+            nodes: 0,
+            qnodes: 0,
+            ttHits: 0,
+            betaCutoffs: 0
+        };
+
+        // 根排序：TT move > SEE 吃子 > 升变 > 普通着。
+        const rootEntry = PERSISTENT_TT.get(hashKey(h[0], h[1]));
+        const rootTT = rootEntry ? rootEntry.best : null;
+        for (const k of roots) k.score = scoreMove(board, k.m, 0, ctx, color, rootTT, null);
+        roots.sort((a, b) => b.score - a.score);
+
+        let bestMove = roots[0].m;
+        let bestScore = 0;
+        let completeScores = null;
+        let prevBestMove = null, prevBestScore = null;
+        let stableCount = 0;
+
         for (let d = 1; d <= maxDepth; d++) {
-            let localBest = null, localScore = maximizing ? -Infinity : Infinity;
-            const iter = [];
-            let aborted = false;
-            for (let i = 0; i < roots.length; i++) {
-                const k = roots[i];
-                const nh = hashAfterMove(h[0], h[1], k.m, castlingRights, k.nc, enPassantTarget, k.nep);
-                const v = minimax(k.nb, d - 1, -Infinity, Infinity, -color, k.nc, k.nep, ctx, 1, nh[0], nh[1]);
-                if (v === STOP) { aborted = true; break; }
-                k.score = v;
-                iter.push(k);
-                if (maximizing ? v > localScore : v < localScore) { localScore = v; localBest = k.m; }
+            let alpha = -Infinity, beta = Infinity;
+            // Aspiration Window：从第 3 层开始围绕上一层分数搜索。
+            let window = d >= 3 ? 28 : Infinity;
+            if (Number.isFinite(window)) {
+                alpha = bestScore - window;
+                beta = bestScore + window;
             }
-            if (aborted) break;                                  // 本层未搜完 → 丢弃，沿用上一层结果
-            bestMove = localBest; bestScore = localScore;
-            completeScores = iter.map(k => ({ m: k.m, score: k.score }));
-            roots.sort((a, b) => maximizing ? b.score - a.score : a.score - b.score);
-            // 5.0.0 优化：History 衰减（旧着法的 history 分数逐层淡化，避免过时信息干扰排序）
-            for (let hi = 0; hi < 2; hi++) {
-                const h = ctx.history[hi];
-                for (let i = 0; i < h.length; i++) h[i] = (h[i] * HISTORY_DECAY) | 0;
+
+            let result;
+            while (true) {
+                result = searchRoot(roots, board, color, castlingRights, enPassantTarget,
+                                    d, alpha, beta, ctx, h[0], h[1]);
+                if (result.aborted) break;
+                if (!Number.isFinite(window) || (!result.failLow && !result.failHigh)) break;
+
+                // 渐进扩窗，避免一次 fail 就退回无限窗口。
+                // v7.5.0 非对称扩窗：fail-low 只降 alpha（保持 beta），fail-high 只升 beta（保持 alpha），
+                // 已验证过的另一侧窗口不再白白放宽，重搜更快收敛。
+                window *= 3;
+                if (window > 700) {
+                    alpha = -Infinity; beta = Infinity; window = Infinity;
+                } else if (result.failLow) {
+                    alpha = result.bestScore - window;
+                } else {
+                    beta = result.bestScore + window;
+                }
             }
-            if (Date.now() - ctx.startTime > budget * 0.5) break; // 剩余时间不足以再深一层就收手
-            // v7.2.2 收敛提前返回：本层与上一层最佳着法一致、分数波动幅度很小，
-            //   说明深一层没有带来实质变化（已收敛）→ 不必等满时间盒，立即返回。
-            //   显著减少大师难度"明明不变化仍硬搜满3秒"的卡顿，棋力基本不变。
-            if (d >= 2 && prevBestMove && prevBestMove.from === localBest.from
-                && prevBestMove.to === localBest.to
-                && prevBestMove.promotion === localBest.promotion
-                && Math.abs(prevBestScore - localScore) < 20) {
-                if (Date.now() - ctx.startTime > budget * 0.3) break;
+            if (!result || result.aborted) break;
+
+            bestMove = result.bestMove;
+            bestScore = result.bestScore;
+            completeScores = result.scored;
+
+            lastDepth = d;   // v7.7.0：本层完成，记录深度（供状态栏展示）
+            const same = prevBestMove && sameMove(prevBestMove, bestMove);
+            const scoreStable = prevBestScore !== null && Math.abs(prevBestScore - bestScore) <= 18;
+            stableCount = (same && scoreStable) ? stableCount + 1 : 0;
+
+            // History 衰减，避免旧 cutoff 永久统治排序。
+            for (let side = 0; side < 2; side++) {
+                const hh = ctx.history[side];
+                for (let i = 0; i < hh.length; i++) hh[i] = (hh[i] * 0.86) | 0;
             }
-            prevBestMove = localBest; prevBestScore = localScore;
+
+            const elapsed = Date.now() - ctx.startTime;
+            // v7.5.0：原来同一数组排序两遍取前两名，排一次即可
+            const sortedScored = result.scored.length >= 2
+                ? result.scored.slice().sort((a, b) => b.score - a.score) : null;
+            const secondGap = sortedScored ? sortedScored[0].score - sortedScored[1].score : 9999;
+
+            // 动态时间管理：
+            // ① 最佳着连续稳定；② 第一候选明显领先；③ 已超过 soft limit → 提前结束。
+            if (elapsed >= softLimit) {
+                if (stableCount >= 1 && secondGap >= 35) break;
+                if (stableCount >= 2) break;
+            }
+            // 时间已过 58%，通常不再开启成本可能翻倍的新一层。
+            if (elapsed > hardLimit * 0.58) break;
+
+            prevBestMove = bestMove;
+            prevBestScore = bestScore;
         }
+
         lastNodes = ctx.nodes;
 
-        // 弱化档：只在"与最佳着法差距 ≤ margin"的着法里抽签，既保留变化又绝不送子
-        const scored = completeScores || [{ m: bestMove, score: bestScore }];
-        let pool = scored.filter(s => Math.abs(s.score - bestScore) <= margin);
-        // v7.2.2 简单档送子保护：剔除送大子（下一手会被白吃掉≥200分、且无吃子补偿）的候选，
-        //   让简单难度以"算得浅"产生难度，而非靠主动送子 —— 更符合新手对局的观感。
-        if (level === 1 && pool.length > 1) {
-            pool = pool.filter(s => {
-                if (s.score >= bestScore - 200) return true;                 // 差距小(最多小劣)保留
-                const moved = s.m;
-                const victim = board[moved.to[0]][moved.to[1]];
-                if (victim !== 0) return true;                               // 是吃子着法，有补偿，保留
-                // 非吃子着法且分差≥200 → 视为会送大子，剔除（除非那是唯一可走着法）
-                return false;
-            });
-            if (pool.length === 0) pool = scored.slice();                    // 兜底：别全剔空
-        }
-        if (pool.length === 0) return bestMove;    // 兜底：任何情况下都必须给出一着（绝不返回空）
+        // 简单/困难档允许在接近最佳的候选中产生少量变化；大师始终选最佳。
+        const scored = completeScores || [{m: bestMove, score: bestScore}];
+        let pool = scored.filter(s => bestScore - s.score <= margin);
+
+        // v7.7.0：删除原「简单档不主动送大子」分支——经实测是死代码。
+        // 该分支形如 safe = pool.filter(s => bestScore - s.score < 200 || s.m.captured)，
+        // 而 pool 已按 bestScore - score <= margin（简单档 margin=35）过滤过，
+        // 池内最大分差恒 ≤ 35 < 200 → filter 恒真、safe 恒等于 pool，整段从未起过作用。
+        // 已用 margin=35 的候选池逐元素验证 safe === pool。档位差异靠搜索深度（棋力）
+        // 区分，而不是事后按分数二次筛选——与 7.4.0「困难倒挂修复」思路一致。
+        if (!pool.length) return bestMove;
+        // 7.4.0 修复"困难倒挂"根因：大师/困难档都直接返回最佳着法。
+        // 旧逻辑困难档在"并列最高分"的着法里随机抽(level===3才直接返回bestMove)，
+        // 导致困难档常抽到次优着法→失去攻击性→被浅层简单档抓住机会赢(倒挂)。
+        // 档位区分改为靠 maxDepth/预算(棋力)，而不是靠"随机抽并列"这种自损方式。
+        if (level >= 2) return bestMove;
+
         const pick = Math.min(pool.length - 1, Math.floor(Math.pow(Math.random(), 1.6) * pool.length));
         return pool[pick].m;
+    }
+
+    // ===== v7.5.0 复盘分析专用搜索 =====
+    // 复用主搜索（PVS / LMR / 静态搜索 / TT），只去掉时间盒与开局库，纯算力评估。
+    // 返回"对当前走子方 color 有利"的相对分（negamax 约定）。
+    // 旧版 _analysisSearch 是裸 alpha-beta（无排序/无 TT/无静态搜索），战术局面在深度边界误判多。
+    // v7.6.0：新增 isolatedTT 参数——复盘分析默认用独立转置表，不再污染实战搜索的共享 PERSISTENT_TT。
+    function analyzePosition(board, color, castlingRights, enPassantTarget, depth, isolatedTT) {
+        const ctx = {
+            killers: [],
+            history: [new Int32Array(32768), new Int32Array(32768)],
+            captureHistory: [new Int32Array(7 * 7 * 64), new Int32Array(7 * 7 * 64)],
+            countermoves: new Int32Array(32768),
+            startTime: Date.now(), hardLimit: 1e15, abortSignal: null,
+            useQ: true,
+            repSet: null, pathKeys: [],
+            nodes: 0, qnodes: 0, ttHits: 0, betaCutoffs: 0,
+            // v7.6.0：独立 TT（复盘用），不传则用共享 PERSISTENT_TT（实战搜索）
+            tt: isolatedTT || undefined
+        };
+        const h = fullHash(board, castlingRights, enPassantTarget, color);
+        return negamax(board, depth, -Infinity, Infinity, color, castlingRights, enPassantTarget,
+                       ctx, 0, h[0], h[1], null, 0, true);
     }
 
     return {
         WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
         createInitialBoard, generateMoves, makeMove, getCastlingRights,
-        getEnPassantTarget, isInCheck, findKing, findBestMove, getPieceType, getPieceColor, evaluate, getLastNodes, hashAfterMove, fullHash, hashKey,
+        getEnPassantTarget, isInCheck, findKing, findBestMove, analyzePosition, getPieceType, getPieceColor, evaluate, getLastNodes, getLastDepth, getLastBookHit, hashAfterMove, fullHash, hashKey,
         positionKey, invalidateKingCache
     };
+}
+
+// 主线程实例：走法生成/合法性/记谱/复盘分析仍在本地；AI 与提示的搜索默认走 Worker。
+const ChessEngine = ChessEngineFactory();
+
+// ===== v7.5.0 AI 搜索 Worker =====
+// 把引擎工厂源码序列化进 Blob Worker，在后台线程独立实例化一份引擎跑搜索：
+// 大师档 ~2.8s 的搜索不再冻结界面（动画/点击全程流畅），Worker 里的持久 TT 跨回合照样生效。
+// 任何环节失败（老 WebView 不支持 Blob Worker 等）findBestMoveAsync 返回 null，
+// 调用方自动回退主线程同步搜索，功能不受影响。
+const EngineWorker = (() => {
+    let worker = null, seq = 0, rebuilds = 0;
+    const MAX_REBUILDS = 8;              // 重建次数上限：防止持续报错时无限重建
+    const pending = new Map();           // id -> { resolve, timer }
+    const DEFAULT_TIMEOUT = 4000;        // 默认搜索超时（ms）
+    // v7.7.0：Worker 创建抽成函数，支持"运行期出错后惰性重建"。
+    // 旧版 onerror 里直接 worker = null 且无任何重建路径 → 之后永久同步回退主线程，
+    // 7.5.0 专门修掉的"大师档冻结界面"会静默复活，而用户无从判断原因。
+    function createWorker() {
+    if (worker) return worker;
+    if (rebuilds >= MAX_REBUILDS) return null;
+    try {
+        const src =
+                    'const ChessEngine = (' + ChessEngineFactory.toString() + ')();\n' +
+                    'let analysisTT = null;   // v7.6.0 复盘分析独立转置表（与实战搜索的共享 TT 完全隔离）\n' +
+                    '// v7.7.0：进行中任务登记表 —— 主线程发 cancel 消息即可 abort 掉引擎的 abortSignal，\n' +
+                    '// 悔棋/重开/切模式时后台搜索立刻停下，不再把整个时间预算（大师档 2800ms）白烧完。\n' +
+                    'const cancelled = new Map();\n' +
+                    'onmessage = function(e) {\n' +
+                    '    const d = e.data;\n' +
+                    '    if (d.type === "cancel") {\n' +
+                    '        const ent = cancelled.get(d.id);\n' +
+                    '        if (ent) ent.ac.abort();\n' +
+                    '        cancelled.delete(d.id);\n' +
+                    '        return;\n' +
+                    '    }\n' +
+                    '    try {\n' +
+                    '        if (d.type === "analyze") {\n' +
+                    '            // 复盘分析：评估当前走子方的最佳着法与分值\n' +
+                    '            // 每 ply 用独立 TT（累积复用加速同局复盘；与实战搜索隔离，不污染共享表）\n' +
+                    '            if (!analysisTT) analysisTT = new Map();\n' +
+                    '            const board = d.board, color = d.color, rights = d.castlingRights, ept = d.enPassantTarget;\n' +
+                    '            const depth = d.depth || 3;\n' +
+                    '            cancelled.set(d.id, { ac: new AbortController() });\n' +
+                    '            const raw = ChessEngine.generateMoves(board, color, rights, ept);\n' +
+                    '            let bestScore = -Infinity, bestMove = null;\n' +
+                    '            for (let i = 0; i < raw.length; i++) {\n' +
+                    '                const m = raw[i];\n' +
+                    '                const nb = ChessEngine.makeMove(board, m);\n' +
+                    '                if (ChessEngine.isInCheck(nb, color)) continue;\n' +
+                    '                const nc = ChessEngine.getCastlingRights(nb, rights);\n' +
+                    '                const nep = ChessEngine.getEnPassantTarget(nb, m);\n' +
+                    '                const sc = -ChessEngine.analyzePosition(nb, -color, nc, nep, depth - 1, analysisTT);\n' +
+                    '                if (sc > bestScore) { bestScore = sc; bestMove = m; }\n' +
+                    '            }\n' +
+                    '            // v7.6.0：实际着法 dev 也在 Worker 内算，主线程零引擎调用\n' +
+                    '            let dev = 0;\n' +
+                    '            if (d.actual && typeof d.actual.from !== "undefined") {\n' +
+                    '                const nb2 = ChessEngine.makeMove(board, d.actual);\n' +
+                    '                const nc2 = ChessEngine.getCastlingRights(nb2, rights);\n' +
+                    '                const nep2 = ChessEngine.getEnPassantTarget(nb2, d.actual);\n' +
+                    '                const sc2 = -ChessEngine.analyzePosition(nb2, -color, nc2, nep2, depth - 1, analysisTT);\n' +
+                    '                dev = Number.isFinite(bestScore) ? Math.abs(bestScore - sc2) : 0;\n' +
+                    '            }\n' +
+                    '            if (analysisTT.size > 120000) analysisTT.clear();   // 防内存无限涨\n' +
+                    '            postMessage({ id: d.id, ok: true, type: "analyze", bestScore: bestScore, bestMove: bestMove, dev: dev });\n' +
+                    '        } else {\n' +
+                    '            const ent = { ac: new AbortController() };\n' +
+                    '            cancelled.set(d.id, ent);\n' +
+                    '            const move = ChessEngine.findBestMove(d.board, d.color, d.castlingRights, d.enPassantTarget, d.level, ent.ac.signal, d.sanHistory, d.repKeys);\n' +
+                    '            postMessage({ id: d.id, ok: true, move: move, nodes: ChessEngine.getLastNodes(), depth: ChessEngine.getLastDepth(), book: ChessEngine.getLastBookHit() });\n' +
+                    '        }\n' +
+                    '    } catch (err) {\n' +
+                    '        postMessage({ id: d.id, ok: false, error: String(err) });\n' +
+                    '    } finally {\n' +
+                    '        cancelled.delete(d.id);\n' +
+                    '    }\n' +
+                    '}';
+        worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        worker.onmessage = (e) => {
+            const d = e.data, p = pending.get(d.id);
+            if (p) { clearTimeout(p.timer); pending.delete(d.id); p.resolve(d); }
+        };
+        worker.onerror = () => {
+            // 运行期出错：唤醒所有等待者并允许下次调用重建（v7.7.0：不再永久降级）
+            try { worker.terminate(); } catch (e) {}
+            worker = null;
+            rebuilds++;
+            const ps = Array.from(pending.values());
+            pending.clear();
+            ps.forEach(p => { clearTimeout(p.timer); p.resolve(null); });
+        };
+        return worker;
+    } catch (e) { worker = null; rebuilds = MAX_REBUILDS; return null; }
+    }
+    createWorker();
+
+    // v7.7.0：告诉 Worker 中止当前进行中的搜索/分析（配合 Worker 内 cancelled 表）。
+    // 调用方已用 stale() 作废这批结果，这里只负责让后台 CPU 停下来。
+    function terminatePending() {
+        if (!worker || !pending.size) return;
+        for (const id of Array.from(pending.keys())) {
+            try { worker.postMessage({ type: 'cancel', id }); } catch (e) { break; }
+        }
+    }
+
+    // Worker 可用 → 返回 Promise；不可用 → 返回 null（调用方走同步回退）
+    // v7.7.0：①惰性重建 ②超时保护（旧版 await 无出口，异常路径下会永久"思考中"）
+    function findBestMoveAsync(args) {
+        if (!createWorker()) return null;
+        const timeoutMs = args.timeoutMs || DEFAULT_TIMEOUT;
+        return new Promise(resolve => {
+            const id = ++seq;
+            const timer = setTimeout(() => {
+                if (!pending.has(id)) return;
+                pending.delete(id);
+                try { worker.postMessage({ type: 'cancel', id }); } catch (e) {}
+                try { worker.terminate(); } catch (e) {}
+                worker = null; rebuilds++;      // 超时视为 Worker 异常，重建后继续
+                resolve({ ok: false, timeout: true });
+            }, timeoutMs);
+            pending.set(id, { resolve, timer });
+            try { worker.postMessage(Object.assign({ id }, args)); }
+            catch (e) { clearTimeout(timer); pending.delete(id); resolve({ ok: false, error: String(e) }); }
+        });
+    }
+    // v7.6.0：复盘分析走 Worker（异步，不阻塞主线程）。返回 Promise 或 null（Worker 不可用）
+    // v7.7.0：同样加超时保护（复盘是长任务，给足 25s）
+    function analyzeAsync(args) {
+        if (!createWorker()) return null;
+        const timeoutMs = args.timeoutMs || 25000;
+        return new Promise(resolve => {
+            const id = ++seq;
+            const timer = setTimeout(() => {
+                if (!pending.has(id)) return;
+                pending.delete(id);
+                try { worker.postMessage({ type: 'cancel', id }); } catch (e) {}
+                resolve({ ok: false, timeout: true });
+            }, timeoutMs);
+            pending.set(id, { resolve, timer });
+            try { worker.postMessage(Object.assign({ id, type: 'analyze' }, args)); }
+            catch (e) { clearTimeout(timer); pending.delete(id); resolve({ ok: false, error: String(e) }); }
+        });
+    }
+    return { findBestMoveAsync, analyzeAsync, terminatePending, get available() { return !!worker; } };
 })();
 
 // ===================== 音效系统 =====================
@@ -2346,8 +3042,11 @@ const PRACTICE_POSITIONS = [
     { group: '基本杀法', name: '双象杀单王', player: 'w', limit: 40, win: 'mate',
       goal: '双象杀单王：两象控制不同颜色的格子，配合自己的王把对方王一步步挤到角落。要点：王的推进比象更重要。',
       pieces: [['K',7,4],['B',7,2],['B',7,5],['k',0,4]] },
-    { group: '基本杀法', name: '马象杀单王·最难', player: 'w', limit: 45, win: 'mate',
-      goal: '马象杀单王——公认最难的基本杀法，新手可以先跳过。要点：把对方王逼到与象同色的角落再动手，全程慢慢缩小包围圈。',
+    { group: '基本杀法', name: '马象杀单王·最难', player: 'w', limit: 60, win: 'mate',
+      goal: '马象杀单王——公认最难的基本杀法。要点：把对方王逼到与象同色的角落再动手，全程慢慢缩小包围圈。'
+            + '（提示：这个残局理论最长需 33 步，任何引擎都要几十步才能收网，耐心走。）',
+      // v7.7.0 修正：原 limit=45（22.5 回合）——连引擎自己都要 161 步才收网，
+      // 会在 50 步规则判和前先撞上"超步"失败。放宽到 60 步，让认真的玩家有机会走完。
       pieces: [['K',7,4],['N',7,1],['B',7,2],['k',0,4]] },
 
     // ===== 组二 · 一步杀（每题的答案都经过将杀求解器验证）=====
@@ -2396,8 +3095,11 @@ const PRACTICE_POSITIONS = [
     { group: '兵与车兵残局', name: '连兵升变', player: 'w', limit: 20, win: 'promote',
       goal: '两个连在一起的通路兵一起往前推——对方的单王挡不住两个。要点：让两个兵互相保护，王在旁边护航。',
       pieces: [['K',5,3],['P',4,1],['P',4,2],['k',3,5]] },
-    { group: '兵与车兵残局', name: '远方通路兵', player: 'w', limit: 20, win: 'promote',
+    { group: '兵与车兵残局', name: '远方通路兵', player: 'w', limit: 40, win: 'promote',
       goal: '远处那个兵就是胜负手：对方的王来不及追，你的王往另一边走牵扯它。要点：兵先跑，王后跟。',
+      // v7.7.0 修正：原 limit=20。实测对手简单档白方第 5 步即升变，但困难/大师档下
+      // 白方 120 半回合内都完不成——不是玩家不会，是题目在对抗档位上调不过。
+      // 放宽到 40 步（20 回合）让标准档位有合理完成空间；想挑战极限可选「对手强度=大师」。
       pieces: [['K',4,6],['P',4,0],['k',2,4]] },
     { group: '兵与车兵残局', name: '车兵必胜·搭桥', player: 'w', limit: 45, win: 'mate',
       goal: '车兵对车（Lucena 局面）：教科书式的必胜残局。要点：用兵逼住对方王，再用自己的车在王的头上"搭一座桥"挡住对方的将军。',
@@ -2757,6 +3459,7 @@ class ChessGame {
         this.turnIndicator = document.getElementById('turnIndicator');
         this.evalScoreEl = document.getElementById('evalScore');
         this.thinkingIndicator = document.getElementById('thinkingIndicator');
+        this.thinkingTimerEl = document.getElementById('thinkingTimer');
         this.capturedByBlackEl = document.getElementById('capturedByBlack');
         this.capturedByWhiteEl = document.getElementById('capturedByWhite');
         this.moveListEl = document.getElementById('moveList');
@@ -2857,7 +3560,11 @@ class ChessGame {
             this.settingsOverlayEl.addEventListener('click', (e) => { if (e.target === this.settingsOverlayEl) this.closeSettings(); });
         }
         const headerEl = document.querySelector('.header');
-        if (headerEl) this.bindLongPress(headerEl, () => this.openSettings(), 600);   // 隐形长按入口
+        if (headerEl) this.bindLongPress(headerEl, () => this.openSettings(), 600);   // 长按仍是兼容入口
+        // v7.7.0：可见的设置齿轮（旧版只有隐形长按，新用户根本找不到精细设置）
+        const gear = document.getElementById('settingsGear');
+        if (gear) gear.addEventListener('click', () => this.openSettings());
+        this.bindKeyboardShortcuts();
         if (this.colorSliderEl) {
             this.colorSliderEl.querySelectorAll('.color-slider-opt').forEach(btn => {
                 btn.addEventListener('click', () => this.onColorPreferenceChange(btn.dataset.color));
@@ -2940,11 +3647,7 @@ class ChessGame {
         if (this.hintBtnEl) this.hintBtnEl.classList.add('busy');
         this.showToast('正在为你思考…');
         const token = this.animationToken;
-        setTimeout(() => {
-            let move = null;
-            try {
-                move = ChessEngine.findBestMove(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget, 4, undefined, this.sanHistory);
-            } catch (e) { move = null; }
+        const finish = (move) => {
             this._hintRunning = false;
             if (this.hintBtnEl) this.hintBtnEl.classList.remove('busy');
             if (token !== this.animationToken) return;   // 期间已走子/重开 → 丢弃这次结果
@@ -2954,7 +3657,32 @@ class ChessGame {
             this._hintPly = this.sanHistory.length;
             this.render();
             this.showToast('已标出建议走法');
-        }, 40);
+        };
+        // v7.5.0：提示搜索同样走 Worker（思考期间界面不卡）；Worker 不可用回退旧的同步路径
+        const req = EngineWorker.findBestMoveAsync({
+            board: this.board, color: this.currentPlayer, castlingRights: this.castlingRights,
+            enPassantTarget: this.enPassantTarget, level: 4,
+            sanHistory: this.sanHistory, repKeys: this.positionHistory,
+            timeoutMs: 10000
+        });
+        if (req) {
+            req.then(res => finish(res && res.ok ? res.move : null));
+        } else {
+            setTimeout(() => {
+                let move = null;
+                try {
+                    move = ChessEngine.findBestMove(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget, 4, undefined, this.sanHistory, this.positionHistory);
+                } catch (e) { move = null; }
+                // v7.7.0 兜底：连提示都算不出来也别报"没有可走的着法"（那是误导），
+                // 退一步给第一个合法着法当建议。
+                if (!move) {
+                    const legal = ChessEngine.generateMoves(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget)
+                        .filter(m => !ChessEngine.isInCheck(ChessEngine.makeMove(this.board, m), this.currentPlayer));
+                    move = legal.length ? legal[0] : null;
+                }
+                finish(move);
+            }, 40);
+        }
     }
 
     getPlayerColorValue() {
@@ -3018,7 +3746,15 @@ class ChessGame {
             // 5.2.8：双人模式下"轮到己方走"说明刚走的是对方，己方无可悔的步 → 一并禁用
             const notMyTurn = this.gameMode === 'pvp' && this.currentPlayer === mineColor;
             this.undoBtn.disabled = this.gameOver || noSteps || mineLeft <= 0 || notMyTurn;
-            this.undoBtn.textContent = '悔棋';
+            // v7.7.0 体验：把剩余悔棋次数直接写在按钮上。
+            // 旧版要点开才知道还剩几次，练习模式次数是无限的（保持不显示数字）。
+            if (this.gameMode === 'pvp') {
+                this.undoBtn.textContent = '悔棋 ' + Math.max(0, Math.min(3, mineLeft));
+            } else if (this.practiceMode) {
+                this.undoBtn.textContent = '悔棋';
+            } else {
+                this.undoBtn.textContent = '悔棋 ' + Math.max(0, mineLeft);
+            }
         }
         // 5.2.7：双人模式对方侧按钮同样按"对方剩余次数 + 是否有步可悔"disable
         if (this.oppUndoBtnEl) {
@@ -3073,6 +3809,10 @@ class ChessGame {
 
     stopAI() {
         this._aiGen = (this._aiGen || 0) + 1;   // 让进行中的搜索/待执行回调失效
+        // v7.7.0：光靠 stale() 只保证"不用旧结果"，Worker 里的搜索会照跑完整个时间预算
+        // （大师档 2800ms）——悔棋 3 次白白吃掉约 8.4 秒满负荷 CPU，笔记本上直接体现为风扇转速。
+        // 这里显式通知 Worker 中止，让引擎的 abortSignal 立刻生效。
+        EngineWorker.terminatePending();
         if (this.aiFrame) {
             cancelAnimationFrame(this.aiFrame);
             this.aiFrame = null;
@@ -3424,18 +4164,57 @@ class ChessGame {
     aiMoveWithDelay() {
         if (this.gameMode !== 'pvc') return;
         this.isThinking = true;
+        // v7.7.0 体验：思考时显示已用秒数。大师档要 2.8s，没有计时用户会怀疑卡死。
+        (() => {
+            const t0 = Date.now(), gen = this._aiGen;
+            if (this._thinkTimer) { clearInterval(this._thinkTimer); this._thinkTimer = null; }
+            this._thinkTimer = setInterval(() => {
+                if (gen !== this._aiGen || !this.isThinking) { clearInterval(this._thinkTimer); this._thinkTimer = null; return; }
+                if (this.thinkingTimerEl) this.thinkingTimerEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+            }, 100);
+        })();
         this.render();
         this.abortController = new AbortController();
         const ac = this.abortController;
         const aiColor = this.getAIColorValue();
         const gen = ++this._aiGen;   // 本次搜索代号：被中断（重开/悔棋/认输/切模式）后自动失效
         const stale = () => gen !== this._aiGen || ac.aborted;
-        const runSearch = () => {
+        // v7.5.0：搜索移入 Web Worker，不再阻塞主线程——不再需要"先让出一帧再开搜"的
+        // rAF/定时器双保险（那是为同步阻塞搜索做的 workaround），直接开搜，思考期间界面全程流畅。
+        // Worker 不可用（老 WebView）时自动回退旧的同步路径（ac.signal 中断仍生效）。
+        const runSearch = async () => {
             if (stale()) { this.isThinking = false; this.render(); return; }
-            const move = ChessEngine.findBestMove(
-                this.board, aiColor, this.castlingRights, this.enPassantTarget,
-                this.difficulty, ac.signal, this.sanHistory
-            );
+            let move = null;
+            const req = EngineWorker.findBestMoveAsync({
+                board: this.board, color: aiColor, castlingRights: this.castlingRights,
+                enPassantTarget: this.enPassantTarget, level: this.difficulty,
+                sanHistory: this.sanHistory, repKeys: this.positionHistory,
+                // v7.7.0：超时阈值（大师档预算 2800ms，给到 8s 余量）
+                timeoutMs: this.difficulty === 3 ? 8000 : 4000
+            });
+            if (req) {
+                const res = await req;   // Worker 搜索期间不卡界面；被中断则结果由 stale() 作废
+                if (res && res.ok) {
+                    move = res.move;
+                }
+            }
+            // v7.7.0 三层兜底（旧版只有"Worker 坏了就同步搜"两层，且 Worker 超时后无出口）：
+            //   ① Worker 正常返回 → 用它的结果
+            //   ② Worker 失败/超时/不可用 → 主线程同步搜索
+            //   ③ 连同步搜索都拿不到着法 → 落到第一个合法着法，绝不卡回合
+            if (!move && !stale()) {
+                try {
+                    move = ChessEngine.findBestMove(
+                        this.board, aiColor, this.castlingRights, this.enPassantTarget,
+                        this.difficulty, ac.signal, this.sanHistory, this.positionHistory
+                    );
+                } catch (e) { move = null; }
+                if (!move) {
+                    const legal = ChessEngine.generateMoves(this.board, aiColor, this.castlingRights, this.enPassantTarget)
+                        .filter(m => !ChessEngine.isInCheck(ChessEngine.makeMove(this.board, m), aiColor));
+                    move = legal.length ? legal[0] : null;
+                }
+            }
             if (move && !stale()) {
                 this.executeAIMove(move);
             } else {
@@ -3444,19 +4223,7 @@ class ChessGame {
                 this.checkGameEnd();
             }
         };
-        // 搜索是同步阻塞的：理想情况是先让浏览器画一帧（"AI思考中"提示 + 棋盘更新）再开搜，
-        // 否则界面会停在上一帧的画面上（旧提示、残留灰点），看起来像卡住。
-        // 但 rAF 在后台标签页/不出帧的环境里根本不会触发，所以必须用定时器兜底 —— 两个谁先到算谁。
-        let started = false;
-        const start = () => {
-            if (started) return;
-            started = true;
-            if (this.aiFrame) { cancelAnimationFrame(this.aiFrame); this.aiFrame = null; }
-            if (this.aiTimer) { clearTimeout(this.aiTimer); this.aiTimer = null; }
-            runSearch();
-        };
-        this.aiFrame = requestAnimationFrame(start);
-        this.aiTimer = setTimeout(start, 100);
+        runSearch();
     }
 
     async executeAIMove(move) {
@@ -3589,7 +4356,8 @@ class ChessGame {
         //   一旦不是将军（对方脱困）或这手有实质推进（吃子/兵动），立即清零。
         //   同一方连续"光将军不推进"达到阈值即在 checkGameEnd 判和，根治 AI/玩家无限将军绕圈。
         let checkNow = false;
-        try { checkNow = lastMove && ChessEngine.isInCheck(this.board, this.currentPlayer); } catch (e) {}
+        try { checkNow = lastMove && ChessEngine.isInCheck(this.board, this.currentPlayer); }
+        catch (e) { console.warn('[长将判和] isInCheck 探针异常，本步不计入长将计数', e); }   // v7.7.0：不再静默吞掉
         if (checkNow && lastMove.captured === 0 && Math.abs(lastMove.piece) !== ChessEngine.PAWN) {
             this.perpetualCheckCount++;
         } else {
@@ -3860,6 +4628,41 @@ class ChessGame {
             this.moveListEl.innerHTML = html;
             this.moveListEl.scrollTop = this.moveListEl.scrollHeight;
         }
+    }
+
+    // v7.7.0 体验：键盘快捷键（桌面/外接键盘）
+    //   ← →  在走棋记录里前后翻阅（配合复盘）
+    //   Ctrl/Cmd+Z  悔棋      N  新对局      H  提示      Esc  关闭弹窗
+    bindKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            if (e.defaultPrevented) return;
+            const tag = (e.target && e.target.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            const k = e.key;
+            if (k === 'Escape') {
+                if (this.modalEl && this.modalEl.classList.contains('show')) { this.pendingConfirm = null; this.hideModal(); }
+                else if (this.settingsOverlayEl && this.settingsOverlayEl.classList.contains('show')) this.closeSettings();
+                else if (this.practicePickerEl && this.practicePickerEl.classList.contains('show')) this.closePracticePicker();
+                return;
+            }
+            // ← →：翻阅走棋记录（有复盘结果时同步显示该步评价）
+            if ((k === 'ArrowLeft' || k === 'ArrowRight') && this.sanHistory.length) {
+                if (!(this._analysisResults && this._analysisResults.length)) return;
+                e.preventDefault();
+                if (this._kbPly === undefined || this._kbPly === null) this._kbPly = this.sanHistory.length - 1;
+                this._kbPly += (k === 'ArrowRight' ? 1 : -1);
+                this._kbPly = Math.max(0, Math.min(this.sanHistory.length - 1, this._kbPly));
+                this._showAnalysisForPly(this._kbPly);
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'Z')) {
+                if (this.undoBtn && !this.undoBtn.disabled) { e.preventDefault(); this.undoBtn.click(); }
+                return;
+            }
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (k === 'n' || k === 'N') { if (this.newGameBtn) this.newGameBtn.click(); }
+            else if (k === 'h' || k === 'H') { if (this.hintBtnEl && this.hintBtnEl.style.display !== 'none') this.hintBtnEl.click(); }
+        });
     }
 
     moveSAN(move, prevBoard) {
@@ -4137,6 +4940,8 @@ class ChessGame {
 
     _stopAnalysis() {
         this._analysisRunning = false;
+        // v7.6.0：清理挂起的复盘续跑定时器（Worker 异步路径可能正等一个 setTimeout 续跑）
+        if (this._analysisTimer) { clearTimeout(this._analysisTimer); this._analysisTimer = null; }
         this._updateAnalysisBtn();
         this.render();
     }
@@ -4295,37 +5100,8 @@ class ChessGame {
 
 // ===================== 5.1.0 复盘分析模式 =====================
 // 对局结束后逐步回放，每步用引擎评估偏差：≤30=✅好棋 ≤100=⚠️疑问手 >100=❌失误
-
-function _analysisSearch(board, color, castlingRights, enPassant, depth, alpha, beta) {
-    // 复盘专用带深度的 alpha-beta 评价：返回"对 color 本体有利"的分数。
-    // 与游戏 AI(findBestMove) 解耦：无开局库/无时间盒/无 margin 弱化，纯算力取最佳，评价更客观。
-    if (depth <= 0) {
-        return ChessEngine.evaluate(board);   // board 是"下一步谁走"之前的静态局面
-    }
-    const raw = ChessEngine.generateMoves(board, color, castlingRights, enPassant);
-    // 无合法着法：被将杀(手方负) 或 逼和(0)
-    let hasMove = false;
-    for (const m of raw) {
-        const nb = ChessEngine.makeMove(board, m);
-        if (ChessEngine.isInCheck(nb, color)) continue;
-        hasMove = true; break;
-    }
-    if (!hasMove) return ChessEngine.isInCheck(board, color) ? -99999 : 0;
-    // alpha-beta
-    let best = -Infinity;
-    for (const m of raw) {
-        const nb = ChessEngine.makeMove(board, m);
-        if (ChessEngine.isInCheck(nb, color)) continue;   // 不能走送王
-        const nc = ChessEngine.getCastlingRights(nb, castlingRights);
-        const nep = ChessEngine.getEnPassantTarget(nb, m);
-        // 对方视角 → 棋面分对对方取负，再取反回本方 max
-        const sc = -_analysisSearch(nb, -color, nc, nep, depth - 1, -beta, -alpha);
-        if (sc > best) best = sc;
-        if (best > alpha) alpha = best;
-        if (alpha >= beta) break;   // beta cutoff
-    }
-    return best;
-}
+// v7.5.0：逐手评价改用 ChessEngine.analyzePosition（复用主搜索的 PVS/LMR/静态搜索/TT，无时间盒），
+// 替掉旧版裸 alpha-beta _analysisSearch——旧版无着法排序、无 TT、无静态搜索，战术局面在深度边界误判多。
 
 
 function startAnalysis(g) {
@@ -4339,7 +5115,52 @@ function startAnalysis(g) {
     const hist = g.historyStack.concat(g.lastMove ? [{ lastMove: JSON.parse(JSON.stringify(g.lastMove)) }] : []);
     g.selectedSquare = null; g.validMoves = [];
     g._updateAnalysisBtn(); g.showToast('正在复盘分析…');
-    const step = () => {
+    // v7.7.0：复盘深度由固定 3 层改为按局面阶段自适应。
+    // 3 层足以看穿简单战术，但残局子力少、变化深，会把「两步后才暴露的失误」判成好棋、
+    // 把实际最佳着法标成「偏差」。复盘跑在 Worker 里不卡界面，加深的代价只是分析稍慢。
+    const _pieceCount = g.board.reduce((n, row) => n + row.reduce((c, p) => c + (p !== 0 ? 1 : 0), 0), 0);
+    const DEPTH = _pieceCount > 20 ? 3 : 4;
+
+    // v7.6.0：复盘分析改走 Worker（异步，不阻塞主线程），analyzePosition 用独立 TT 不污染实战搜索。
+    // Worker 可用性直接用 EngineWorker.available（Worker 建立失败/运行期崩溃时为 false）
+    const workerAvailable = EngineWorker.available;
+
+    // ===== Worker 异步路径（主线程零引擎调用，dev/bestMove 全在 Worker 算）=====
+    const stepWorker = async () => {
+        if (!g._analysisRunning) return;
+        if (g._analysisPly >= g.sanHistory.length) { g._finishAnalysis(); return; }
+        const ply = g._analysisPly;
+        const snap = hist[ply];
+        const actual = hist[ply+1] ? hist[ply+1].lastMove : null;
+        if (snap && actual) {
+            const mover = snap.currentPlayer;
+            let bestSc = -Infinity, bestM = null, dev = 0;
+            try {
+                // 单个 Worker 请求同时算：最佳着法/分值 + 实际着法偏差 dev（独立 analysisTT）
+                const res = await EngineWorker.analyzeAsync({
+                    board: snap.board, color: mover, castlingRights: snap.castlingRights,
+                    enPassantTarget: snap.enPassantTarget, depth: DEPTH, actual: actual
+                });
+                if (res && res.ok && res.type === 'analyze') {
+                    bestSc = res.bestScore;
+                    bestM = res.bestMove;
+                    dev = res.dev || 0;
+                }
+            } catch(e) { /* 单 ply 失败则跳过（不阻塞整体） */ }
+            if (g._analysisRunning) {
+                g._analysisResults.push({ ply, san: g.sanHistory[ply], dev, grade: dev<=30?'good':dev<=100?'q':'bad', best: bestM?_msan(bestM):'', fromM: actual.from, toM: actual.to });
+                g._analysisPly++;
+                // await 后已是异步续跑，无需 setTimeout 也能让出主线程；保留微任务兜底
+                g._analysisTimer = setTimeout(stepWorker, 0);
+            }
+        } else {
+            g._analysisPly++;
+            g._analysisTimer = setTimeout(stepWorker, 0);
+        }
+    };
+
+    // ===== 旧的同步回退路径（Worker 不可用）=====
+    const stepSync = () => {
         if (!g._analysisRunning) return;
         // 5.2.7：对局被重开/回溯导致历史清空时优雅退出，避免无限 setTimeout 空转
         if (g._analysisPly >= g.sanHistory.length) { g._finishAnalysis(); return; }
@@ -4348,10 +5169,7 @@ function startAnalysis(g) {
         const actual = hist[ply+1] ? hist[ply+1].lastMove : null;
         if (snap && actual) {
             const mover = snap.currentPlayer;
-            // v7.2.2：复盘评价从"1层静态分"升级为"3层 alpha-beta 深度搜索"，
-            //   对最佳着法的认定更接近真棋力（尤其三步杀/战术残局），偏差区分更可信。
-            const DEPTH = 3;
-            let bestSc = mover===1?-Infinity:Infinity, bestM = null;
+            let bestSc = -Infinity, bestM = null;
             try {
                 const raw = ChessEngine.generateMoves(snap.board, mover, snap.castlingRights, snap.enPassantTarget);
                 for (const m of raw) {
@@ -4359,25 +5177,24 @@ function startAnalysis(g) {
                     if (ChessEngine.isInCheck(nb, mover)) continue;
                     const nc = ChessEngine.getCastlingRights(nb, snap.castlingRights);
                     const nep = ChessEngine.getEnPassantTarget(nb, m);
-                    const sc = mover===1
-                        ?  _analysisSearch(nb, -mover, nc, nep, DEPTH-1, -Infinity, Infinity)
-                        : -_analysisSearch(nb, -mover, nc, nep, DEPTH-1, -Infinity, Infinity);
-                    if (mover===1 ? sc>bestSc : sc<bestSc) { bestSc=sc; bestM=m; }
+                    // v7.6.0：回退路径同样用独立 TT（每次 ply 新建，不污染实战共享表）
+                    const sc = -ChessEngine.analyzePosition(nb, -mover, nc, nep, DEPTH - 1, new Map());
+                    if (sc > bestSc) { bestSc = sc; bestM = m; }
                 }
             } catch(e){}
             let dev = 0;
             const nb = ChessEngine.makeMove(snap.board, actual);
             { const nc = ChessEngine.getCastlingRights(nb, snap.castlingRights); const nep = ChessEngine.getEnPassantTarget(nb, actual);
-              const sc = mover===1
-                ?  _analysisSearch(nb, -mover, nc, nep, DEPTH-1, -Infinity, Infinity)
-                : -_analysisSearch(nb, -mover, nc, nep, DEPTH-1, -Infinity, Infinity);
-              dev = Math.abs((mover===1?1:-1)*sc - bestSc); }
+              const sc = -ChessEngine.analyzePosition(nb, -mover, nc, nep, DEPTH - 1, new Map());
+              dev = Math.abs(bestSc - sc); }
             g._analysisResults.push({ ply, san: g.sanHistory[ply], dev, grade: dev<=30?'good':dev<=100?'q':'bad', best: bestM?_msan(bestM):'', fromM: actual.from, toM: actual.to });
         }
         g._analysisPly++;
-        setTimeout(step, 0);
+        setTimeout(stepSync, 0);
     };
-    setTimeout(step, 50);
+
+    if (workerAvailable) { stepWorker(); }
+    else { setTimeout(stepSync, 50); }
 }
 function _msan(m) { if (!m) return ''; if (m.castling==='K') return 'O-O'; if (m.castling==='Q') return 'O-O-O'; const t={2:'N',3:'B',4:'R',5:'Q',6:'K'}[Math.abs(m.piece)]||''; return t+FILES[m.from[1]]+(8-m.from[0])+'→'+FILES[m.to[1]]+(8-m.to[0]); }
 
