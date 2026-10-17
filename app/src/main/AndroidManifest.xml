@@ -20,6 +20,7 @@
         </activity>
     </application>
 
-    <!-- 本应用离线运行无需网络权限，但保留以支持可能的远程资源 -->
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- v7.8.0（审查 S01）：本应用完全离线运行（HTML/CSS/JS 与棋子图全部内嵌），
+         删除 INTERNET 权限，避免"离线游戏却要联网权限"的解释成本与安全面。
+         后续若真接入远程资源，请先评估隐私与权限口径再加回。 -->
 </manifest>

@@ -2,8 +2,33 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>国际象棋 · 离线AI增强版 v7.7.3</title>
+    <!-- v7.8.1：修测试报告《缺陷汇总》的 P1/P2/P3（转置表膨胀崩溃 / 简单档偶发慢招 / 三步压缩超步） -->
+    <!-- v7.8.0：按《国际象棋_v7.7.3_深度审查报告》逐条落地（编号即报告中的问题 ID）
+     · B01 复盘失败不再被评成“好棋”：Worker 返回 ok:false/超时/NaN 一律记 status 并给 grade=null，
+       不计入好棋统计，走棋记录里显示“未分析（超时/出错）”，汇总单列“未分析 N 步”。
+     · B02 取消搜索真正停 CPU：terminatePending 直接 terminate Worker 并清空挂起表（含 resolve），
+       复盘 25s 超时同样 terminate；重建仍走惰性 createWorker（不计入 rebuilds，避免悔棋 8 次后永久禁用）。
+     · B03 FIDE 和棋规则分层：三次重复/五十步=可申请，五次重复/七十五步=自动，将杀优先；
+       新增设置「严格 FIDE 判和」（默认关闭=休闲自动判和）；删除非 FIDE 的“连续 25 次将军判和”。
+     · B04 死局判定收紧：只认 K vs K、K+单象/单马 vs K、双方各一枚同色格象；
+       删除会误判的“王+双马 vs 王”（反例 FEN k7/2NN4/1K6/8/8/8/8/8 b 其实是被将杀）。
+     · B05 静态搜索的逼和地平线：非将军叶节点若“本方只剩王/兵”且无合法着法 → 返回 0（逼和）。
+     · B06 过路兵语义统一：canonicalEnPassant 只承认“确实合法”的吃过路兵，
+       getEnPassantTarget 与 positionKey 共用它，搜索增量哈希与对局历史的键语义从此一致。
+     · B07 思考计时器：先生成搜索代号再建定时器（旧版第一跳必然 gen 失配→停在 0.0s）；
+       搜索结束/新局/悔棋/认输/切模式统一停表清零。
+     · B08 练习题不再被五十步规则截断：练习模式不参与 50/75 步自动判和（题目自带步数上限）。
+     · B09 随 B03 消失：非标准长将计数已删除，不再有“悔棋后计数错位 / 重开丢计数”。
+     · B10 提示失败有兜底：Worker 超时不再谎报“没有可走的着法”，退回本机限时搜索再退首个合法着法。
+     · B11 复盘深度逐手算：按该手局面的棋子数选 3/4 层（旧版用终局盘面决定整局深度）。
+     · R01 同步回退搜索限时 1.2s，并在占用主线程前先显示“正在本机限时计算…”（提示兜底用 600ms）。
+     · U01 可访问性：去掉 user-scalable=no（允许系统缩放）、齿轮与难度按钮热区≥44px、
+       棋格 role/aria-label/键盘 Enter·Space 走子、新增「大号棋盘坐标」开关、状态行 aria-live。
+     · S01 发布签名口令移出 build.gradle → keystore.properties（已在 .gitignore 中）。
+     · 引擎棋力与开局库未改动；规则边界与异步状态机按报告修正。
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <title>国际象棋 · 离线AI增强版 v7.8.1</title>
     <!-- v7.7.3
      · App 图标更换为新版设计稿（马头棋子·绿白棋盘），不影响任何功能。
     -->
@@ -403,7 +428,22 @@
         /* ===== 7.2.2 走棋记录复盘分色：疑=琥珀字、误=淡红字 ===== */
         .move-entry.grade-q { color:#b8860b; font-weight:600; }
         .move-entry.grade-bad { color:#c0392b; font-weight:700; }
-</style>
+        /* ===== v7.8.0（U01）可访问性与热区 ===== */
+        /* 齿轮与难度按钮的触摸目标提到 44px 起（原 32px / 30px，移动端偏小） */
+        .settings-gear { width:44px; height:44px; }
+        .difficulty-btn { min-height:44px; padding:6px 12px; }
+        /* 棋格键盘焦点必须可见（原来是纯 div，键盘用户完全看不到焦点在哪） */
+        .square:focus-visible { outline:3px solid #2563eb; outline-offset:-3px; z-index:6; }
+        /* 大号棋盘坐标（设置面板开关，默认关闭＝保持原观感） */
+        body.big-coords .coord { font-size:11px; }
+        body.big-coords .square .coord-file { bottom:1px; right:3px; }
+        body.big-coords .square .coord-rank { top:1px; left:3px; }
+        /* FIDE 模式下“可主张和棋”按钮（B03）：只在确有可主张理由时出现 */
+        .btn.claim-draw { background:#b45309; border-color:#b45309; color:#fff; font-weight:600; min-height:44px; }
+        .btn.claim-draw:hover { background:#92400e; border-color:#92400e; color:#fff; }
+        body.dark .btn.claim-draw { background:#b45309; border-color:#b45309; color:#fff; }
+        .settings-sub.settings-note { margin:-2px 0 10px; line-height:1.45; }
+    </style>
 </head>
 <body>
 <div class="header">
@@ -421,7 +461,7 @@
     <div class="status-bar" id="status">
         <div class="status-left">
             <span class="turn-indicator white" id="turnIndicator"></span>
-            <span class="status-text" id="statusText">轮到您走棋</span>
+            <span class="status-text" id="statusText" aria-live="polite">轮到您走棋</span>
         </div>
         <div class="status-right">
             <span class="eval-score" id="evalScore">+0.0</span>
@@ -470,6 +510,9 @@
     </div>
 
     <div class="captured-pieces" id="capturedByWhite"></div>
+
+    <!-- v7.8.0（B03）：FIDE 模式下三次重复/五十步需由走子方主张，默认隐藏 -->
+    <button class="btn claim-draw" id="claimDrawBtn" style="display:none;">主张和棋</button>
 
     <div class="controls">
         <div class="control-row difficulty-selector" id="difficultySelector">
@@ -561,6 +604,15 @@
             <span class="settings-row-label">练习模式</span>
             <button class="switch" id="switchPractice" role="switch" aria-checked="false"><span class="knob"></span></button>
         </div>
+        <div class="settings-row">
+            <span class="settings-row-label">严格 FIDE 判和</span>
+            <button class="switch" id="switchDrawRule" role="switch" aria-checked="false"><span class="knob"></span></button>
+        </div>
+        <div class="settings-row">
+            <span class="settings-row-label">大号棋盘坐标</span>
+            <button class="switch" id="switchBigCoords" role="switch" aria-checked="false"><span class="knob"></span></button>
+        </div>
+        <div class="settings-sub settings-note" id="drawRuleNote">严格 FIDE 判和：关闭时三次重复/五十步自动判和（休闲）；开启后按 FIDE 9.2/9.3 由走子方点“主张和棋”，五次重复与七十五步始终自动判和。</div>
         <div class="settings-author">作者：無限進步的戎昱</div>
         <button class="btn settings-close" id="settingsClose">关闭</button>
     </div>
@@ -1881,9 +1933,30 @@ function ChessEngineFactory() {
         if (m & 8) out += 'q';
         return out;
     }
+    // ===== v7.8.0（B06）：过路兵目标格规范化 =====
+    // 旧版只要"兵两步推进"就返回目标格，不看这个吃过路兵到底合不合法；而 positionKey 用的是
+    // "旁边有没有己方兵"这一较松的判据。两种语义混用会让同一局面在有无 EP 目标时得到不同的
+    // 数字键，搜索里的重复局面识别与对局历史 positionHistory 就对不上。
+    // 现在统一用 canonicalEnPassant：只有【确实存在合法吃过路兵】时才保留目标格。
+    function canonicalEnPassant(board, color, ep) {
+        if (!ep) return null;
+        const dir = color === WHITE ? -1 : 1;      // 该方兵的前进方向
+        const fromRow = ep[0] - dir;               // 能执行吃过路兵的己方兵所在行
+        for (let dc = -1; dc <= 1; dc += 2) {
+            const cc = ep[1] + dc;
+            if (!inBounds(fromRow, cc) || board[fromRow][cc] !== color * PAWN) continue;
+            const m = { from: [fromRow, cc], to: [ep[0], ep[1]], piece: color * PAWN,
+                        captured: -color * PAWN, enPassant: true };
+            // 吃过路兵会同时移动两个格子，被钉住的兵吃了会暴露自家王 → 这种不算"可吃"
+            if (!isInCheck(makeMove(board, m), color)) return ep;
+        }
+        return null;
+    }
     function getEnPassantTarget(board, move) {
         if (Math.abs(move.piece) === PAWN && Math.abs(move.from[0]-move.to[0]) === 2) {
-            return [(move.from[0]+move.to[0])/2, move.from[1]];
+            // board 是走完这步之后的盘面；轮到吃这个兵的是对方（-getPieceColor(move.piece)）
+            return canonicalEnPassant(board, -getPieceColor(move.piece),
+                                      [(move.from[0]+move.to[0])/2, move.from[1]]);
         }
         return null;
     }
@@ -2103,18 +2176,11 @@ function ChessEngineFactory() {
     }
 
     function positionKey(board, color, castlingRights, enPassantTarget) {
-        // 三次重复判定：仅当"确实存在能吃这个兵的着法"时才把吃过路兵目标计入签名（标准做法）。
-        let ep = enPassantTarget;
-        if (ep) {
-            const dir = color === WHITE ? -1 : 1;      // 该方兵的前进方向
-            const fromRow = ep[0] - dir;               // 能执行吃过路兵的己方兵所在行
-            let can = false;
-            for (const dc of [-1, 1]) {
-                const cc = ep[1] + dc;
-                if (inBounds(fromRow, cc) && board[fromRow][cc] === color * PAWN) { can = true; break; }
-            }
-            if (!can) ep = null;
-        }
+        // v7.8.0（B06）：改用与 getEnPassantTarget 同一个 canonicalEnPassant——
+        //   要求"确实存在【合法】的吃过路兵"，而不是"旁边有个兵"。
+        //   反例 FEN k3r3/8/8/3pP3/8/8/8/4K3 w - d6：白兵 e5 被 e 线黑车钉住，
+        //   合法吃过路兵数为 0，旧版却仍把 d6 计入键 → 与"无 EP 目标"的同一局面键不同。
+        const ep = canonicalEnPassant(board, color, enPassantTarget);
         return boardHash(board, castlingRights, ep, color);
     }
 
@@ -2223,9 +2289,25 @@ function ChessEngineFactory() {
 
     // ===== Persistent TT =====
     // 跨 AI 回合保留搜索结果；generation 用于淘汰陈旧浅层条目。
+    // ===== Persistent TT =====
+    // 跨 AI 回合保留搜索结果；generation 用于淘汰陈旧浅层条目。
+    //
+    // v7.8.1（修 P1「Map maximum size exceeded」+ P2「ENGINE_SLOW」）：
+    //   旧实现有两处会随对局时长放大的毛病：
+    //   ① trimTT() 只在 findBestMove 开头调一次、且固定只删 1 万条，而大师档单次搜索就能写入
+    //      十几万条 → 同一页面会话里连续多局时 PERSISTENT_TT 单调膨胀。实测自战 1 局 200 半回合
+    //      就涨到 326 万条 / 2.3GB 堆；自战台 14 局即撞上 V8 Map 上限（2^24 = 16777216 条），
+    //      抛出 "Map maximum size exceeded"（2v3 第13/14盘、3v3 第5/6盘都是这么挂的）。
+    //   ② 旧 trimTT() 会先对**全表**建数组再排序，表越大越慢。膨胀后每个回合都要先付这道
+    //      O(n log n) 费用——连简单档 62 节点的搜索也得等它，实测简单档单步 1484ms（预算 450ms），
+    //      且随对局推进越来越慢（1v3 对局里简单档单步均时从 22ms 涨到 1362ms）。
+    //   现在：① 搜索过程中在 storeTT() 里检查硬上限，超了立刻压回软水位；
+    //        ② 压制改成"先删旧世代条目、再按插入顺序（Map 迭代顺序=插入顺序，天然 FIFO）"
+    //           的单遍删除，不建数组、不排序，O(n) 且零额外分配。
     const PERSISTENT_TT = new Map();
     let TT_GENERATION = 0;
-    const TT_MAX = 50000;
+    const TT_KEEP = 60000;    // 软水位：每回合开始把表压回这里（跨回合复用保留 6 万条，高于旧版 4~5 万的地板）
+    const TT_HARD = 200000;   // 硬上限：搜索过程中允许临时涨到这条线（约 30MB），超过立即压回软水位
     const TT_EXACT = 0, TT_LOWER = 1, TT_UPPER = 2;
     const STOP = Number.POSITIVE_INFINITY;
     const MAX_Q_DEPTH = 8;
@@ -2233,23 +2315,42 @@ function ChessEngineFactory() {
     let lastDepth = 0;   // v7.7.0：最近一次完整完成迭代的深度（供状态栏显示）
     let bookHit = false; // v7.7.0：本次结果是否直接来自开局库（状态栏据此显示"开局库"）
 
-    function trimTT(tt) {
-        const map = tt || PERSISTENT_TT;
-        if (map.size <= TT_MAX) return;
-        const arr = [];
-        for (const [k, e] of map) {
-            arr.push([k, (TT_GENERATION - (e.gen || 0)) * 16 - (e.depth || 0)]);
-        }
-        arr.sort((a, b) => b[1] - a[1]); // 越旧、越浅越先删除
-        const removeN = Math.max(4096, Math.floor(TT_MAX * 0.2));
-        for (let i = 0; i < removeN && i < arr.length; i++) map.delete(arr[i][0]);
+    // v7.8.1（修 P3「三步压缩超步」）：转置表里的将杀分必须按 ply 归一化。
+    //   搜索用的是"相对本次搜索根"的 ply 距离分（±(100000 - 距离)），直接存进跨回合复用的表里，
+    //   换个 ply 读出来距离就是错的。实测练习题库连跑时，深度 0 的节点命中别的搜索写下的
+    //   EXACT(d1,-99991) 之类条目，把残局根层所有着法一起顶成 99999（杀棋和随手着法同分），
+    //   大师档只能按排序顺序挑 → 三步压缩 4 步才杀、超出 3 步上限（20 题里唯一失败那题）。
+    //   存取时按 ply 平移，使表内分数表示"从该节点起算"的将杀距离（Stockfish value_to_tt 同款）。
+    const MATE = 100000;
+    const MATE_BOUND = MATE - 600;   // 与最大搜索深度（含将军延伸/静态搜索）留足安全余量
+    function scoreToTT(s, ply) {
+        return s >= MATE_BOUND ? s + ply : (s <= -MATE_BOUND ? s - ply : s);
+    }
+    function scoreFromTT(s, ply) {
+        return s >= MATE_BOUND ? s - ply : (s <= -MATE_BOUND ? s + ply : s);
     }
 
-    function storeTT(key, depth, score, flag, bestKey, tt) {
+    // 把转置表压制到 target 条：优先删旧世代条目（跨回合遗留），整表都是本世代时按插入顺序删。
+    function trimTT(map, target) {
+        const m = map || PERSISTENT_TT;
+        if (m.size <= target) return;
+        for (const e of m.entries()) {
+            if (m.size <= target) return;
+            if ((TT_GENERATION - (e[1].gen || 0)) >= 1) m.delete(e[0]);
+        }
+        for (const k of m.keys()) {
+            if (m.size <= target) return;
+            m.delete(k);
+        }
+    }
+
+    function storeTT(key, depth, score, flag, bestKey, tt, ply) {
         const map = tt || PERSISTENT_TT;
         const old = map.get(key);
         if (!old || depth >= old.depth || old.gen !== TT_GENERATION || flag === TT_EXACT) {
-            map.set(key, {depth, score, flag, best: bestKey, gen: TT_GENERATION});
+            map.set(key, {depth, score: scoreToTT(score, ply || 0), flag, best: bestKey, gen: TT_GENERATION});
+            // Map.size 是 O(1) 读；超硬上限就压回软水位（一次压制摊还到随后几万次写入）
+            if (map.size > TT_HARD) trimTT(map, TT_KEEP);
         }
     }
 
@@ -2308,6 +2409,15 @@ function ChessEngineFactory() {
         return false;
     }
 
+    // v7.8.0（B05）：是否存在合法着法（供静态搜索判逼和；也导出给离线测试台用）
+    function hasLegalMove(board, color, castlingRights, enPassantTarget) {
+        const raw = generateMoves(board, color, castlingRights, enPassantTarget);
+        for (let i = 0; i < raw.length; i++) {
+            if (!isInCheck(makeMove(board, raw[i]), color)) return true;
+        }
+        return false;
+    }
+
     function timedOut(ctx) {
         if (ctx.abortSignal && ctx.abortSignal.aborted) return true;
         return ((ctx.nodes & 511) === 0) && (Date.now() - ctx.startTime > ctx.hardLimit);
@@ -2323,6 +2433,14 @@ function ChessEngineFactory() {
         let standPat = color * evaluate(board);
 
         if (!inCheck) {
+            // v7.8.0（B05）：先判"逼和地平线"。旧版安静叶节点直接返回 standPat，
+            //   把本应 0 分的逼和当成巨大子力劣势（复现：FEN k7/8/1QK5/8/8/8/8/8 b 在 depth=0
+            //   返回 -1505，depth=1 才回到 0）。为控制代价，只在"本方除王/兵外已无子力"
+            //   （hasNonPawnMaterial 为假）时才做全量合法性检查——中局里它几乎立即为真，不付代价。
+            if (!hasNonPawnMaterial(board, color)
+                && !hasLegalMove(board, color, castlingRights, enPassantTarget)) {
+                return 0;
+            }
             if (standPat >= beta) return standPat;
             if (standPat > alpha) alpha = standPat;
             if (qdepth >= MAX_Q_DEPTH) return standPat;
@@ -2357,7 +2475,7 @@ function ChessEngineFactory() {
         }
 
         if (!kids.length) {
-            if (inCheck) return -100000 + ply;
+            if (inCheck) return -MATE + ply;
             return standPat; // QSearch 非将军节点不把“无吃子”误判为和棋
         }
         kids.sort((a, b) => b.s - a.s);
@@ -2398,9 +2516,11 @@ function ChessEngineFactory() {
             ttMove = entry.best;
             ctx.ttHits++;
             if (entry.depth >= depth) {
-                if (entry.flag === TT_EXACT) return entry.score;
-                if (entry.flag === TT_LOWER && entry.score >= beta) return entry.score;
-                if (entry.flag === TT_UPPER && entry.score <= alpha) return entry.score;
+                // v7.8.1：表内将杀分已按 ply 归一化，读出时还原成"相对本次搜索根"的分数
+                const es = scoreFromTT(entry.score, ply);
+                if (entry.flag === TT_EXACT) return es;
+                if (entry.flag === TT_LOWER && es >= beta) return es;
+                if (entry.flag === TT_UPPER && es <= alpha) return es;
             }
         }
 
@@ -2449,8 +2569,8 @@ function ChessEngineFactory() {
         }
 
         if (!kids.length) {
-            const val = inCheck ? (-100000 + ply) : 0;
-            storeTT(key, effectiveDepth, val, TT_EXACT, null, ctx.tt);
+            const val = inCheck ? (-MATE + ply) : 0;
+            storeTT(key, effectiveDepth, val, TT_EXACT, null, ctx.tt, ply);
             return val;
         }
 
@@ -2526,7 +2646,7 @@ function ChessEngineFactory() {
         if (best === -Infinity) best = staticEval;
 
         const flag = best <= origAlpha ? TT_UPPER : (best >= beta ? TT_LOWER : TT_EXACT);
-        storeTT(key, effectiveDepth, best, flag, bestMoveKey, ctx.tt);
+        storeTT(key, effectiveDepth, best, flag, bestMoveKey, ctx.tt, ply);
         return best;
     }
 
@@ -2579,7 +2699,9 @@ function ChessEngineFactory() {
     function getLastBookHit() { return bookHit; }
 
     // v7.5.0：新增 repKeys 参数——对局历史局面键数组（game.positionHistory），供搜索内重复检测
-    function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal, sanHistory, repKeys) {
+    // v7.8.0（R01）：新增 maxMs —— 调用方（同步兜底搜索）可给一道更紧的硬上限，
+    //   避免 Worker 失败后回退搜索把主线程冻住数秒。不传则沿用档位预算。
+    function findBestMove(board, color, castlingRights, enPassantTarget, level, abortSignal, sanHistory, repKeys, maxMs) {
         bookHit = false;
         const maxDepthMap = {1: 2, 2: 4, 3: 9, 4: 7}; // 4=提示专用强搜索档。7.4.0: 困难depth4完整搜索稳赢简单;大师depth9
         const marginMap   = {1: 35, 2: 0, 3: 0, 4: 0};
@@ -2588,8 +2710,12 @@ function ChessEngineFactory() {
 
         const maxDepth = maxDepthMap[level] || 2;
         const margin = marginMap[level] ?? 0;
-        const hardLimit = hardMap[level] || 800;
-        const softLimit = softMap[level] || Math.floor(hardLimit * 0.5);
+        let hardLimit = hardMap[level] || 800;
+        let softLimit = softMap[level] || Math.floor(hardLimit * 0.5);
+        if (maxMs > 0) {   // v7.8.0（R01）：同步兜底搜索的时间上限
+            hardLimit = Math.min(hardLimit, maxMs);
+            softLimit = Math.min(softLimit, Math.floor(maxMs * 0.6));
+        }
 
         const h = fullHash(board, castlingRights, enPassantTarget, color);
         const raw = generateMoves(board, color, castlingRights, enPassantTarget);
@@ -2620,7 +2746,7 @@ function ChessEngineFactory() {
         }
 
         TT_GENERATION++;
-        trimTT();
+        trimTT(PERSISTENT_TT, TT_KEEP);   // v7.8.1：压回软水位；搜索中由 storeTT 兜住硬上限
 
         const ctx = {
             killers: [],
@@ -2762,11 +2888,56 @@ function ChessEngineFactory() {
                        ctx, 0, h[0], h[1], null, 0, true);
     }
 
+    // ===== v7.8.0（B04）：子力不足（绝无可能将杀的死局）=====
+    // 判定必须保守：只有"任何合法走法序列都无法将杀"才算死局。
+    // 旧实现把"无法强制将杀"也当死局 → K+双马 vs K 被提前判和，但反例
+    // FEN k7/2NN4/1K6/8/8/8/8/8 b 里黑王其实已经被将杀（合法着法为 0），
+    // 说明该分类过宽；K+马 vs K+马 之类可合作将杀的局面同样被误判。
+    function isDeadPosition(board) {
+        let w = [], b = [];
+        let wDark = 0, wLight = 0, bDark = 0, bLight = 0;
+        for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+            const p = board[r][c];
+            if (p === 0) continue;
+            const t = p > 0 ? p : -p;
+            if (t === KING) continue;
+            if (p > 0) { w.push(t); if (t === BISHOP) { if ((r + c) % 2 === 0) wDark++; else wLight++; } }
+            else { b.push(t); if (t === BISHOP) { if ((r + c) % 2 === 0) bDark++; else bLight++; } }
+        }
+        const minor = (t) => (t === BISHOP || t === KNIGHT);
+        if (w.length === 0 && b.length === 0) return true;                        // K vs K
+        if (w.length === 1 && minor(w[0]) && b.length === 0) return true;         // K+单象/单马 vs K
+        if (b.length === 1 && minor(b[0]) && w.length === 0) return true;
+        // 双方各一枚象且同色格 → 谁也杀不了（含 K+B vs K+B 同色格）
+        if (w.length === 1 && b.length === 1 && w[0] === BISHOP && b[0] === BISHOP) {
+            const wLightOnly = wLight > 0, bLightOnly = bLight > 0;
+            if (wLightOnly === bLightOnly) return true;
+        }
+        return false;
+    }
+
+    // ===== v7.8.0（B03）：FIDE 和棋规则分层（纯函数，游戏层与离线测试台共用）=====
+    // FIDE《Laws of Chess 2023》：9.2 三次重复、9.3 五十步 = 双方"可申请"的和棋，不是自动终局；
+    // 9.6 五次重复、七十五步 = 自动和棋；5.2.2 死局 = 自动和棋（将杀/逼和优先，调用方先判）。
+    // 返回 { auto: 'dead'|'fivefold'|'seventyfive'|null, claim: 'threefold'|'fifty'|null }
+    // 注意：旧版把三次重复与五十步一律自动判和，导致七十五步规则几乎不可达，也不符合 FIDE；
+    //   另有"连续 25 次将军判和"——FIDE 无此条件，已删除（循环局面交给重复规则）。
+    function classifyDrawRules(repCount, halfMoveClock, deadPosition) {
+        if (deadPosition) return { auto: 'dead', claim: null };
+        if (repCount >= 5) return { auto: 'fivefold', claim: null };
+        if (halfMoveClock >= 150) return { auto: 'seventyfive', claim: null };
+        if (repCount >= 3) return { auto: null, claim: 'threefold' };
+        if (halfMoveClock >= 100) return { auto: null, claim: 'fifty' };
+        return { auto: null, claim: null };
+    }
+
     return {
         WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
         createInitialBoard, generateMoves, makeMove, getCastlingRights,
         getEnPassantTarget, isInCheck, findKing, findBestMove, analyzePosition, getPieceType, getPieceColor, evaluate, getLastNodes, getLastDepth, getLastBookHit, hashAfterMove, fullHash, hashKey,
-        positionKey, invalidateKingCache
+        positionKey, invalidateKingCache,
+        // v7.8.0 新增：死局判定 / FIDE 和棋分层 / 合法着法查询 / 过路兵规范化
+        isDeadPosition, classifyDrawRules, hasLegalMove, canonicalEnPassant
     };
 }
 
@@ -2868,10 +3039,21 @@ const EngineWorker = (() => {
     // v7.7.0：告诉 Worker 中止当前进行中的搜索/分析（配合 Worker 内 cancelled 表）。
     // 调用方已用 stale() 作废这批结果，这里只负责让后台 CPU 停下来。
     function terminatePending() {
-        if (!worker || !pending.size) return;
-        for (const id of Array.from(pending.keys())) {
-            try { worker.postMessage({ type: 'cancel', id }); } catch (e) { break; }
+        if (!worker) return;
+        // v7.8.0（B02）：Worker 里的搜索是同步跑完才回到事件循环的，postMessage({type:'cancel'})
+        //   排在被占满的事件循环之后 —— 旧版“取消”要等搜索结束才被处理，CPU 该烧多久还烧多久
+        //   （报告 §4 B02 实测：发取消后仍算了约 2.8s）。
+        //   这里直接 terminate：CPU 立即释放；旧结果由调用方 stale() 作废；重建交给惰性 createWorker()。
+        //   注意不增加 rebuilds 计数（那是给“运行期报错”用的），否则悔棋 8 次就会永久禁用 Worker。
+        if (pending.size) {
+            for (const p of Array.from(pending.values())) {
+                clearTimeout(p.timer);
+                try { p.resolve({ ok: false, cancelled: true }); } catch (e) { /* 忽略 */ }
+            }
+            pending.clear();   // 必须清空并 resolve，否则等在 Promise 上的一方要等自己的超时才回来
         }
+        try { worker.terminate(); } catch (e) { /* 忽略 */ }
+        worker = null;
     }
 
     // Worker 可用 → 返回 Promise；不可用 → 返回 null（调用方走同步回退）
@@ -2904,7 +3086,10 @@ const EngineWorker = (() => {
             const timer = setTimeout(() => {
                 if (!pending.has(id)) return;
                 pending.delete(id);
-                try { worker.postMessage({ type: 'cancel', id }); } catch (e) {}
+                // v7.8.0（B02）：超时也要真正停掉 Worker——旧版只把 Promise 标成超时，
+                //   后台那个同步搜索会继续烧 CPU 直到自己跑完。
+                try { worker.terminate(); } catch (e) {}
+                worker = null; rebuilds++;
                 resolve({ ok: false, timeout: true });
             }, timeoutMs);
             pending.set(id, { resolve, timer });
@@ -3125,13 +3310,18 @@ class ChessGame {
         this.colorPreference = 'w'; // 滑块偏好：'w' | 'r'（随机）| 'b'
         // 显示偏好默认值（localStorage 不可用时用它们）
         this.showCoords = true;    // 棋盘坐标
+        this.bigCoords = false;    // v7.8.0（U01）：大号棋盘坐标（默认关，保持原观感）
         this.darkMode = false;     // 深色模式
         this.hintOn = false;     // 需要提示（难度行右侧出现提示灯泡）
         this.soundOn = true;      // 音效开关（默认开）
         this.practiceMode = false; // 练习模式（残局题库）
         this.practiceIndex = 0;    // 当前第几题
         this.halfMoveClock = 0;
-        this.perpetualCheckCount = 0;   // v7.2.2: 连续无推进将军计数（长将兜底判和）
+        // v7.8.0（B03/B09）：删除非 FIDE 的“连续无推进将军计数”（长将兜底判和）——
+        //   循环局面交给重复局面规则（休闲：三次自动；FIDE：三次可申请 / 五次自动）。
+        //   该计数原本也不进悔棋快照与存档，删掉后 B09 的“计数错位 / 重开丢失”一并消失。
+        this.drawClaimMode = 'casual';  // 'casual'=休闲自动判和 | 'fide'=三次重复/五十步由走子方主张
+        this._drawClaim = null;         // FIDE 模式下当前可主张的和棋：'threefold' | 'fifty'
         this.positionHistory = [];
         this.undoUsed = 0;        // 本局已用悔棋次数（换难度/新对局时清零）
         this.undoCap = 3;         // 本局悔棋上限（随难度只降不升，新对局重置）
@@ -3152,7 +3342,9 @@ class ChessGame {
             const col = ['w', 'r', 'b'].includes(saved.colorPreference) ? saved.colorPreference : 'w';
             this.colorPreference = col;
             this.showCoords = saved.showCoords !== false;   // 默认显示
+            this.bigCoords = saved.bigCoords === true;      // 默认标准字号
             this.darkMode = saved.darkMode === true;        // 默认浅色
+            this.drawClaimMode = saved.drawClaimMode === 'fide' ? 'fide' : 'casual';
             this.hintOn = saved.showHint === true;        // 默认不显示提示灯泡
             this.soundOn = saved.soundOn !== false;       // 默认开启音效
             this.practiceMode = saved.practiceMode === true; // 默认普通对局
@@ -3309,7 +3501,9 @@ class ChessGame {
                 difficulty: this.difficulty,
                 colorPreference: this.colorPreference,
                 showCoords: this.showCoords,
+                bigCoords: this.bigCoords,
                 darkMode: this.darkMode,
+                drawClaimMode: this.drawClaimMode,
                 showHint: this.hintOn,
                 soundOn: this.soundOn,
                 practiceMode: this.practiceMode,
@@ -3322,6 +3516,7 @@ class ChessGame {
     applyDisplayPrefs() {
         SoundManager.setMuted(!this.soundOn);   // 音效开关实时生效
         document.body.classList.toggle('hide-coords', !this.showCoords);
+        document.body.classList.toggle('big-coords', !!this.bigCoords);   // v7.8.0（U01）
         document.body.classList.toggle('dark', !!this.darkMode);
         document.body.classList.toggle('show-hint', !!this.hintOn);
         document.body.classList.toggle('practice', !!this.practiceMode);
@@ -3339,6 +3534,14 @@ class ChessGame {
         sync(this.switchHintEl, this.hintOn);
         sync(this.switchSoundEl, this.soundOn);
         sync(this.switchPracticeEl, this.practiceMode);
+        // v7.8.0：新增两个开关（严格 FIDE 判和 / 大号坐标）
+        sync(this.switchDrawRuleEl, this.drawClaimMode === 'fide');
+        if (this.switchDrawRuleEl) {
+            this.switchDrawRuleEl.setAttribute('aria-label', this.drawClaimMode === 'fide'
+                ? '严格 FIDE 判和：已开启，三次重复与五十步需点“主张和棋”'
+                : '严格 FIDE 判和：已关闭，三次重复与五十步自动判和');
+        }
+        sync(this.switchBigCoordsEl, this.bigCoords);
     }
 
     toggleCoords() {
@@ -3383,6 +3586,28 @@ class ChessGame {
             this.showToast('已退出练习模式');
             this.newGame();
         }
+    }
+
+    // v7.8.0（B03）：休闲自动判和 ↔ 严格 FIDE 判和
+    toggleDrawRule() {
+        this.drawClaimMode = this.drawClaimMode === 'fide' ? 'casual' : 'fide';
+        this._drawClaim = null;
+        this.updateSettingsUI();
+        this.savePrefs();
+        this.updateClaimDrawUI();
+        // 切到严格模式时立刻重算一次：可能马上就有可主张的和棋
+        if (this.drawClaimMode === 'fide') this.checkGameEnd();
+        this.showToast(this.drawClaimMode === 'fide'
+            ? '已开启严格 FIDE 判和：三次重复/五十步需点“主张和棋”'
+            : '已回到休闲判和：三次重复/五十步自动判和');
+    }
+
+    // v7.8.0（U01）：大号棋盘坐标
+    toggleBigCoords() {
+        this.bigCoords = !this.bigCoords;
+        this.applyDisplayPrefs();
+        this.savePrefs();
+        this.showToast(this.bigCoords ? '棋盘坐标已切换为大号' : '棋盘坐标已切回标准');
     }
 
     openSettings() { if (this.settingsOverlayEl) this.settingsOverlayEl.classList.add('show'); }
@@ -3507,6 +3732,9 @@ class ChessGame {
         this.switchHintEl = document.getElementById('switchHint');
         this.switchSoundEl = document.getElementById('switchSound');
         this.switchPracticeEl = document.getElementById('switchPractice');
+        this.switchDrawRuleEl = document.getElementById('switchDrawRule');     // v7.8.0（B03）
+        this.switchBigCoordsEl = document.getElementById('switchBigCoords');   // v7.8.0（U01）
+        this.claimDrawBtnEl = document.getElementById('claimDrawBtn');        // v7.8.0（B03）
         this.hintBtnEl = document.getElementById('hintBtn');
         this.practiceBarEl = document.getElementById('practiceBar');
         this.practiceNameEl = document.getElementById('practiceName');
@@ -3525,6 +3753,9 @@ class ChessGame {
         if (this.switchHintEl) this.switchHintEl.addEventListener('click', () => this.toggleHint());
         if (this.switchSoundEl) this.switchSoundEl.addEventListener('click', () => this.toggleSound());
         if (this.switchPracticeEl) this.switchPracticeEl.addEventListener('click', () => this.togglePractice());
+        if (this.switchDrawRuleEl) this.switchDrawRuleEl.addEventListener('click', () => this.toggleDrawRule());
+        if (this.switchBigCoordsEl) this.switchBigCoordsEl.addEventListener('click', () => this.toggleBigCoords());
+        if (this.claimDrawBtnEl) this.claimDrawBtnEl.addEventListener('click', () => this.claimDraw());
         // 提示按钮
         if (this.hintBtnEl) this.hintBtnEl.addEventListener('click', () => this.showHint());
         // 练习面板
@@ -3659,19 +3890,15 @@ class ChessGame {
             this.showToast('已标出建议走法');
         };
         // v7.5.0：提示搜索同样走 Worker（思考期间界面不卡）；Worker 不可用回退旧的同步路径
-        const req = EngineWorker.findBestMoveAsync({
-            board: this.board, color: this.currentPlayer, castlingRights: this.castlingRights,
-            enPassantTarget: this.enPassantTarget, level: 4,
-            sanHistory: this.sanHistory, repKeys: this.positionHistory,
-            timeoutMs: 10000
-        });
-        if (req) {
-            req.then(res => finish(res && res.ok ? res.move : null));
-        } else {
+        // v7.8.0（B10）：把本机兜底抽成函数——Worker 超时/失败时也走它。
+        //   旧版只有 Worker 建不起来才兜底，超时就直接 finish(null) → 明明有合法着法却提示
+        //   “暂时没有可走的着法”，是误导。
+        const localFallback = () => {
             setTimeout(() => {
                 let move = null;
                 try {
-                    move = ChessEngine.findBestMove(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget, 4, undefined, this.sanHistory, this.positionHistory);
+                    // 限时 600ms：这已经是 Worker 失败后的兜底，不能再把主线程占很久（R01 同理）
+                    move = ChessEngine.findBestMove(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget, 4, undefined, this.sanHistory, this.positionHistory, 600);
                 } catch (e) { move = null; }
                 // v7.7.0 兜底：连提示都算不出来也别报"没有可走的着法"（那是误导），
                 // 退一步给第一个合法着法当建议。
@@ -3682,6 +3909,20 @@ class ChessGame {
                 }
                 finish(move);
             }, 40);
+        };
+        const req = EngineWorker.findBestMoveAsync({
+            board: this.board, color: this.currentPlayer, castlingRights: this.castlingRights,
+            enPassantTarget: this.enPassantTarget, level: 4,
+            sanHistory: this.sanHistory, repKeys: this.positionHistory,
+            timeoutMs: 10000
+        });
+        if (req) {
+            req.then(res => {
+                if (res && res.ok && res.move) { finish(res.move); return; }
+                localFallback();
+            });
+        } else {
+            localFallback();
         }
     }
 
@@ -3813,6 +4054,7 @@ class ChessGame {
         // （大师档 2800ms）——悔棋 3 次白白吃掉约 8.4 秒满负荷 CPU，笔记本上直接体现为风扇转速。
         // 这里显式通知 Worker 中止，让引擎的 abortSignal 立刻生效。
         EngineWorker.terminatePending();
+        this._stopThinkTimer();   // v7.8.0（B07）：中断搜索时计时一并清零
         if (this.aiFrame) {
             cancelAnimationFrame(this.aiFrame);
             this.aiFrame = null;
@@ -3879,6 +4121,9 @@ class ChessGame {
 
     buildBoardDOM() {
         this.boardEl.innerHTML = '';
+        // v7.8.0（U01）：棋盘作为网格暴露给读屏；每格可 Tab 聚焦，Enter/Space 等同点击
+        this.boardEl.setAttribute('role', 'grid');
+        this.boardEl.setAttribute('aria-label', '国际象棋棋盘，8 行 8 列');
         this._squareEls = {};
         // 按显示顺序生成格子：翻转时先放显示行 0（物理顶部）= 逻辑第 7 行
         for (let dispR=0; dispR<8; dispR++) {
@@ -3900,6 +4145,16 @@ class ChessGame {
                 sq.appendChild(coordFile);
                 sq.appendChild(coordRank);
                 sq.addEventListener('click', () => this.onSquareClick(r, c));
+                // v7.8.0（U01）：键盘与读屏支持（原来 64 格是纯 div，键盘用户完全无法走子）
+                sq.setAttribute('role', 'button');
+                sq.tabIndex = 0;
+                sq.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+                        ev.preventDefault();
+                        this.onSquareClick(r, c);
+                    }
+                });
+                sq.setAttribute('aria-label', this.squareLabel(r, c));
                 this.boardEl.appendChild(sq);
                 this._squareEls[r + ',' + c] = { sq, baseClass, shownPiece: undefined };
             }
@@ -3970,6 +4225,7 @@ class ChessGame {
         this.updateStatus(inCheckNow);
         this.updateCaptured();
         this.updateMoveHistory();
+        this.refreshSquareLabels();   // v7.8.0（U01）：同步棋格的读屏标签
         this.drawHintArrow();
     }
 
@@ -4000,6 +4256,30 @@ class ChessGame {
             '<line x1="' + sx + '" y1="' + sy + '" x2="' + ex + '" y2="' + ey + '"' +
             ' stroke="#9ca3af" stroke-width="' + sw + '" stroke-linecap="round"' +
             ' marker-end="url(#hintArrowHead)"/></svg>');
+    }
+
+    // ===== v7.8.0（U01）无障碍：棋格的中文读屏标签 =====
+    pieceLabelCN(p) {
+        if (!p) return '空格';
+        const names = {1:'兵',2:'马',3:'象',4:'车',5:'后',6:'王'};
+        return (p > 0 ? '白' : '黑') + (names[Math.abs(p)] || '棋子');
+    }
+    squareLabel(r, c) {
+        const sel = this.selectedSquare && this.selectedSquare[0] === r && this.selectedSquare[1] === c;
+        const canGo = this.validMoves.some(m => m.to[0] === r && m.to[1] === c);
+        return `${FILES[c]}${8 - r}，${this.pieceLabelCN(this.board[r][c])}`
+             + (sel ? '，已选中' : '') + (canGo ? '，可落子' : '');
+    }
+    refreshSquareLabels() {
+        if (!this._squareEls) return;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const info = this._squareEls[r + ',' + c];
+                if (!info) continue;
+                const label = this.squareLabel(r, c);
+                if (info.label !== label) { info.label = label; info.sq.setAttribute('aria-label', label); }
+            }
+        }
     }
 
     onSquareClick(r, c) {
@@ -4161,23 +4441,34 @@ class ChessGame {
         }
     }
 
+    // v7.8.0（B07）：统一停表并清零（搜索结束、新局、悔棋、认输、切模式都要走这里）
+    _stopThinkTimer() {
+        if (this._thinkTimer) { clearInterval(this._thinkTimer); this._thinkTimer = null; }
+        if (this.thinkingTimerEl) this.thinkingTimerEl.textContent = '';
+    }
+
     aiMoveWithDelay() {
         if (this.gameMode !== 'pvc') return;
+        // v7.8.0（B03）：FIDE 模式下轮到 AI 且已有可主张的和棋 → 直接主张，不再继续找着法
+        if (this.maybeAutoClaimForAI()) return;
         this.isThinking = true;
+        // v7.8.0（B07）：先生成本次搜索代号，再建计时器。
+        //   旧版先读 gen = this._aiGen、之后才 ++this._aiGen，计时器第一跳必然 gen 失配 → 自行清除，
+        //   于是秒数永远停在 0.0s（报告 §2.4 浏览器实测复现）。
+        const gen = ++this._aiGen;   // 本次搜索代号：被中断（重开/悔棋/认输/切模式）后自动失效
         // v7.7.0 体验：思考时显示已用秒数。大师档要 2.8s，没有计时用户会怀疑卡死。
-        (() => {
-            const t0 = Date.now(), gen = this._aiGen;
-            if (this._thinkTimer) { clearInterval(this._thinkTimer); this._thinkTimer = null; }
+        this._stopThinkTimer();
+        {
+            const t0 = Date.now();
             this._thinkTimer = setInterval(() => {
-                if (gen !== this._aiGen || !this.isThinking) { clearInterval(this._thinkTimer); this._thinkTimer = null; return; }
+                if (gen !== this._aiGen || !this.isThinking) { this._stopThinkTimer(); return; }
                 if (this.thinkingTimerEl) this.thinkingTimerEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
             }, 100);
-        })();
+        }
         this.render();
         this.abortController = new AbortController();
         const ac = this.abortController;
         const aiColor = this.getAIColorValue();
-        const gen = ++this._aiGen;   // 本次搜索代号：被中断（重开/悔棋/认输/切模式）后自动失效
         const stale = () => gen !== this._aiGen || ac.aborted;
         // v7.5.0：搜索移入 Web Worker，不再阻塞主线程——不再需要"先让出一帧再开搜"的
         // rAF/定时器双保险（那是为同步阻塞搜索做的 workaround），直接开搜，思考期间界面全程流畅。
@@ -4203,10 +4494,17 @@ class ChessGame {
             //   ② Worker 失败/超时/不可用 → 主线程同步搜索
             //   ③ 连同步搜索都拿不到着法 → 落到第一个合法着法，绝不卡回合
             if (!move && !stale()) {
+                // v7.8.0（R01）：回退到主线程同步搜索会冻界面，所以①先把状态文字画上屏，
+                //   ②给同步搜索一道 1.2s 的更紧上限（正常档位预算仍由档位决定，只在兜底时收紧）。
+                this._stopThinkTimer();
+                if (this.statusTextEl) this.statusTextEl.textContent = '后台搜索不可用，正在本机限时计算…';
+                await new Promise(r => setTimeout(r, 40));   // 让上面这行先上屏（主线程马上要被占用）
+                if (stale()) { this.isThinking = false; this.render(); return; }
                 try {
                     move = ChessEngine.findBestMove(
                         this.board, aiColor, this.castlingRights, this.enPassantTarget,
-                        this.difficulty, ac.signal, this.sanHistory, this.positionHistory
+                        this.difficulty, ac.signal, this.sanHistory, this.positionHistory,
+                        1200
                     );
                 } catch (e) { move = null; }
                 if (!move) {
@@ -4215,6 +4513,7 @@ class ChessGame {
                     move = legal.length ? legal[0] : null;
                 }
             }
+            this._stopThinkTimer();   // v7.8.0（B07）：拿到结果就停表，秒数不再涨到动画结束
             if (move && !stale()) {
                 this.executeAIMove(move);
             } else {
@@ -4352,17 +4651,8 @@ class ChessGame {
         } else {
             this.halfMoveClock++;
         }
-        // v7.2.2 长将兜底：本步给对方将军 + 非吃子 + 非兵动 → 连续将军计数累加；
-        //   一旦不是将军（对方脱困）或这手有实质推进（吃子/兵动），立即清零。
-        //   同一方连续"光将军不推进"达到阈值即在 checkGameEnd 判和，根治 AI/玩家无限将军绕圈。
-        let checkNow = false;
-        try { checkNow = lastMove && ChessEngine.isInCheck(this.board, this.currentPlayer); }
-        catch (e) { console.warn('[长将判和] isInCheck 探针异常，本步不计入长将计数', e); }   // v7.7.0：不再静默吞掉
-        if (checkNow && lastMove.captured === 0 && Math.abs(lastMove.piece) !== ChessEngine.PAWN) {
-            this.perpetualCheckCount++;
-        } else {
-            this.perpetualCheckCount = 0;
-        }
+        // v7.8.0（B03/B09）：原“连续 25 次将军判和”已删除——FIDE 没有这条独立自动判和条件，
+        //   循环局面由重复局面规则处理（休闲：三次自动；FIDE：三次可申请 / 五次自动）。
         if (this.positionHistory.length > 200) {
             this.positionHistory = this.positionHistory.slice(-100);
         }
@@ -4393,66 +4683,94 @@ class ChessGame {
             }
             return true;
         }
+        // ===== v7.8.0（B03）：FIDE 和棋规则分层 =====
+        //   可申请（9.2 三次重复 / 9.3 五十步）与自动（9.6 五次重复 / 七十五步、5.2.2 死局）分开。
+        //   旧版一律自动判和：五十步提前结束使七十五步规则几乎不可达，也不符合 FIDE 的“可申请”语义。
+        //   B08：练习题自带步数上限，不参与 50/75 步判和（否则“马象杀单王”的 60 步额度被五十步截断）。
         const key = ChessEngine.positionKey(this.board, this.currentPlayer, this.castlingRights, this.enPassantTarget);
         const count = this.positionHistory.filter(k => k === key).length;
-        if (count >= 3) {
+        const halfClock = this.practiceMode ? 0 : this.halfMoveClock;
+        const rules = ChessEngine.classifyDrawRules(count, halfClock, this.isInsufficientMaterial());
+        if (rules.auto) {
             this.gameOver = true;
-            if (this.practiceMode) { this.practiceFinish(false, '三次重复成和——练习时要主动求变。'); return true; }
-            this.showModal('三次重复', '和棋！', 'end');
+            this._drawClaim = null;
+            this.updateClaimDrawUI();
+            if (this.practiceMode) {
+                this.practiceFinish(false, rules.auto === 'dead'
+                    ? '子力不足成和——追杀的棋子被吃掉了，再试一次。'
+                    : '局面反复出现，和棋——练习时要主动求变。');
+                return true;
+            }
+            if (rules.auto === 'dead') { this.showModal('子力不足', '和棋！', 'end'); return true; }
+            if (rules.auto === 'seventyfive') { this.showModal('七十五步规则', '连续七十五回合无吃子、无兵动，和棋！', 'end'); return true; }
+            this.showModal('五次重复', '同一局面出现五次，和棋！', 'end');
             return true;
         }
-        // 5.0.0 优化：添加 75 步规则（FIDE 标准：75 回合无吃子无兵动强制判和）
-        if (this.halfMoveClock >= 150) {
+        if (rules.claim) {
+            if (this.drawClaimMode === 'fide' && !this.practiceMode) {
+                // 严格 FIDE：只有轮到走棋的一方可以主张，点了「主张和棋」才结束
+                this._drawClaim = rules.claim;
+                this.updateClaimDrawUI();
+                return false;
+            }
             this.gameOver = true;
-            if (this.practiceMode) { this.practiceFinish(false, '触发七十五步规则成和——推进得太慢了。'); return true; }
-            this.showModal('七十五步规则', '和棋！', 'end');
-            return true;
-        }
-        if (this.halfMoveClock >= 100) {
-            this.gameOver = true;
-            if (this.practiceMode) { this.practiceFinish(false, '触发五十步规则成和——推进得太慢了。'); return true; }
+            this._drawClaim = null;
+            this.updateClaimDrawUI();
+            if (this.practiceMode) {
+                this.practiceFinish(false, rules.claim === 'threefold'
+                    ? '三次重复成和——练习时要主动求变。'
+                    : '触发五十步规则成和——推进得太慢了。');
+                return true;
+            }
+            if (rules.claim === 'threefold') { this.showModal('三次重复', '和棋！', 'end'); return true; }
             this.showModal('五十步规则', '和棋！', 'end');
             return true;
         }
-        // v7.2.2 长将兜底判和：同一方连续 25 手"光将军、不推进"(非吃子非兵动) → 判和。
-        //   根治 AI 无限将军绕圈却迟迟不将杀（此前只能靠三次重复偶然触发，王移动时就漏判）。
-        if (this.perpetualCheckCount >= 25) {
-            this.gameOver = true;
-            if (this.practiceMode) { this.practiceFinish(false, '长将不推进，成和——将军的同时要想着怎么终结对局。'); return true; }
-            this.showModal('长将判和', '连续将军却不推进，和棋！', 'end');
-            return true;
-        }
-        if (this.isInsufficientMaterial()) {
-            this.gameOver = true;
-            if (this.practiceMode) { this.practiceFinish(false, '子力不足成和——追杀的棋子被吃掉了，再试一次。'); return true; }
-            this.showModal('子力不足', '和棋！', 'end');
-            return true;
-        }
+        this._drawClaim = null;
+        this.updateClaimDrawUI();
         return false;
     }
 
-    isInsufficientMaterial() {
-        const pieces = { white: [], black: [] };
-        for (let r=0; r<8; r++) for (let c=0; c<8; c++) {
-            const p = this.board[r][c];
-            if (p !== 0) {
-                const color = ChessEngine.getPieceColor(p);
-                const type = ChessEngine.getPieceType(p);
-                if (color === ChessEngine.WHITE) pieces.white.push(type);
-                else pieces.black.push(type);
-            }
+    // ===== v7.8.0（B03）：可主张的和棋 =====
+    // FIDE 9.2/9.3 是“经一方主张才成和”，所以按钮只在轮到走子、且确有可主张理由时出现。
+    updateClaimDrawUI() {
+        const btn = this.claimDrawBtnEl;
+        if (!btn) return;
+        const canClaim = !this.gameOver && !!this._drawClaim;
+        btn.style.display = canClaim ? 'block' : 'none';
+        if (canClaim) {
+            btn.textContent = this._drawClaim === 'threefold' ? '主张和棋（三次重复）' : '主张和棋（五十步规则）';
         }
-        const isInsufficient = (arr) => {
-            const nonKing = arr.filter(t => t !== ChessEngine.KING);
-            if (nonKing.length === 0) return true;                       // 仅王
-            if (nonKing.length === 1) {                                  // 王+单马 / 王+单象
-                return nonKing[0] === ChessEngine.KNIGHT || nonKing[0] === ChessEngine.BISHOP;
-            }
-            // 王+双马：无法强制将杀（对手不配合即为和棋），按子力不足判和
-            if (nonKing.length === 2 && nonKing.every(t => t === ChessEngine.KNIGHT)) return true;
-            return false;
-        };
-        return isInsufficient(pieces.white) && isInsufficient(pieces.black);
+    }
+
+    claimDraw() {
+        if (this.gameOver || !this._drawClaim) return;
+        const kind = this._drawClaim;
+        this.gameOver = true;
+        this._drawClaim = null;
+        this.updateClaimDrawUI();
+        this.isThinking = false;
+        if (this.practiceMode) { this.practiceFinish(false, '和棋。'); return; }
+        this.showModal('主张和棋', kind === 'threefold'
+            ? '同一局面出现三次（或即将第三次出现），主张和棋！'
+            : '连续五十回合无吃子、无兵动，主张和棋！', 'end');
+    }
+
+    // FIDE 模式下轮到 AI 走棋时，AI 不会“为了赢而拒绝”可主张的和棋 —— 直接主张，避免卡住回合。
+    maybeAutoClaimForAI() {
+        if (this.drawClaimMode !== 'fide' || this.practiceMode) return false;
+        if (!this._drawClaim || this.gameOver) return false;
+        if (this.currentPlayer !== this.getAIColorValue()) return false;
+        this.claimDraw();
+        return true;
+    }
+
+    // v7.8.0（B04）：判定交给引擎的 isDeadPosition——“任何合法走法序列都无法将杀”才算死局。
+    //   旧版把“无法强制将杀”当死局，于是 K+双马 vs K 会被提前判和（其实守方配合下可被将杀，
+    //   反例 FEN k7/2NN4/1K6/8/8/8/8/8 b 合法着法为 0），K+马 vs K+马 之类也被误判。
+    isInsufficientMaterial() {
+        try { return ChessEngine.isDeadPosition(this.board); }
+        catch (e) { console.warn('[死局判定] 引擎探针异常，本次按“非死局”处理', e); return false; }
     }
 
     showPromotionModal(move) {
@@ -4902,7 +5220,8 @@ class ChessGame {
         // 初始局面也要计入三次重复计数（否则回到开局局面时少算一次，判和会偏晚）
         this.positionHistory = [ChessEngine.positionKey(this.board, ChessEngine.WHITE, this.castlingRights, this.enPassantTarget)];
         this.halfMoveClock = 0;
-        this.perpetualCheckCount = 0;   // v7.2.2: 新对局长将计数清零
+        this._drawClaim = null;         // v7.8.0（B03）：新对局清空“可主张和棋”
+        this.updateClaimDrawUI();
         this._checkSoundPlayed = false;
         this.humanMoved = false;   // 玩家本局是否已落子（决定滑块切换能否立即生效）
         this.clearSavedGame();     // 新对局覆盖旧存档
@@ -4959,8 +5278,11 @@ class ChessGame {
         const good = r.filter(x=>x.grade==='good').length;
         const q = r.filter(x=>x.grade==='q').length;
         const bad = r.filter(x=>x.grade==='bad').length;
+        // v7.8.0（B01）：失败/超时的步数单列“未分析”，绝不混进好棋统计
+        const na = r.filter(x=>!x.grade).length;
+        const naLine = na ? `\n⏳ 未分析 ${na} 步（引擎超时或出错，可再点一次复盘重试）` : '';
         this.showModal('复盘分析完成',
-                    `共 ${r.length} 步复盘结果：\n✅ 好棋 ${good}\n⚠️ 疑问手 ${q}\n❌ 失误 ${bad}\n\n点击走棋记录查看每步详情`, 'plain');
+                    `共 ${r.length} 步复盘结果：\n✅ 好棋 ${good}\n⚠️ 疑问手 ${q}\n❌ 失误 ${bad}${naLine}\n\n点击走棋记录查看每步详情`, 'plain');
     }
 
     // 点走棋记录时：如果分析完成，显示该步评价
@@ -4969,8 +5291,10 @@ class ChessGame {
         // 5.2.8：按 ply 字段查找，不再依赖数组下标（防某步缺失时整体错位）
         const r = this._analysisResults.find(x => x.ply === ply);
         if (!r) return;
-        const icon = r.grade==='good'?'✅':r.grade==='q'?'⚠️':'❌';
-        const label = r.grade==='good'?'好棋':r.grade==='q'?'疑问手':'失误';
+        // v7.8.0（B01）：未分析（超时/出错）的步不再被当成“失误”——旧版把 grade=null 归进 ❌
+        const icon = r.grade==='good'?'✅':r.grade==='q'?'⚠️':r.grade==='bad'?'❌':'⏳';
+        const label = r.grade==='good'?'好棋':r.grade==='q'?'疑问手':r.grade==='bad'?'失误'
+                    : (r.status==='timeout' ? '未分析（超时）' : '未分析（出错）');
         const best = r.best ? ` · 建议：${r.best}` : '';
         // 7.2.2：复查时在棋盘上高亮该步落子（起点/终点）
         if (this._reviewHlEls) {
@@ -4986,7 +5310,9 @@ class ChessGame {
         }
         // 5.2.13：评价分行显示——第一行着法+结论，第二行偏差+建议
         //   （.toast 已设 white-space:pre-line，文案里 \n 即真实换行）
-        this.showToast(`${icon} ${r.san} → ${label}\n偏差 ${r.dev}${best}`, false, 4000);
+        this.showToast(r.grade
+            ? `${icon} ${r.san} → ${label}\n偏差 ${r.dev}${best}`
+            : `${icon} ${r.san} → ${label}`, false, 4000);
     }
 
     // 5.2.3：byColor 指定"谁在悔棋"。
@@ -5068,6 +5394,8 @@ class ChessGame {
         this._checkSoundPlayed = false;
         this.hintMove = null;
         this._analysisResults = null;   // 5.2.7：局面已变，清空复盘结果
+        this._drawClaim = null;         // v7.8.0（B03）：悔棋后重新判定“可主张和棋”
+        this.updateClaimDrawUI();
         this.render();
         if (this.practiceMode) this.updatePracticeUI();   // 练习模式：已用步数跟着回退
         // 悔棋计数 + 悬浮提示（练习模式不限次，只给一句反馈）
@@ -5118,8 +5446,13 @@ function startAnalysis(g) {
     // v7.7.0：复盘深度由固定 3 层改为按局面阶段自适应。
     // 3 层足以看穿简单战术，但残局子力少、变化深，会把「两步后才暴露的失误」判成好棋、
     // 把实际最佳着法标成「偏差」。复盘跑在 Worker 里不卡界面，加深的代价只是分析稍慢。
-    const _pieceCount = g.board.reduce((n, row) => n + row.reduce((c, p) => c + (p !== 0 ? 1 : 0), 0), 0);
-    const DEPTH = _pieceCount > 20 ? 3 : 4;
+    // v7.8.0（B11）：深度改成“逐手按该手局面”算——旧版用【终局盘面】的棋子数定一个深度给整局用，
+    //   于是长局的开局/中局/残局被同一档位处理（残局该更深、中局白花时间）。
+    const depthFor = (board) => {
+        let n = 0;
+        for (const row of board) for (const p of row) if (p !== 0) n++;
+        return n > 20 ? 3 : 4;
+    };
 
     // v7.6.0：复盘分析改走 Worker（异步，不阻塞主线程），analyzePosition 用独立 TT 不污染实战搜索。
     // Worker 可用性直接用 EngineWorker.available（Worker 建立失败/运行期崩溃时为 false）
@@ -5134,21 +5467,29 @@ function startAnalysis(g) {
         const actual = hist[ply+1] ? hist[ply+1].lastMove : null;
         if (snap && actual) {
             const mover = snap.currentPlayer;
-            let bestSc = -Infinity, bestM = null, dev = 0;
+            let bestM = null, dev = 0, status = 'error';
             try {
                 // 单个 Worker 请求同时算：最佳着法/分值 + 实际着法偏差 dev（独立 analysisTT）
                 const res = await EngineWorker.analyzeAsync({
                     board: snap.board, color: mover, castlingRights: snap.castlingRights,
-                    enPassantTarget: snap.enPassantTarget, depth: DEPTH, actual: actual
+                    enPassantTarget: snap.enPassantTarget, depth: depthFor(snap.board), actual: actual
                 });
-                if (res && res.ok && res.type === 'analyze') {
-                    bestSc = res.bestScore;
+                // v7.8.0（B01）：只有“确实算出了有限的分值”才允许评级。
+                //   旧版不管成功与否都拿 dev 的初始值 0 去评级 → 超时/异常被显示成“好棋、偏差 0”。
+                if (res && res.ok && res.type === 'analyze'
+                    && Number.isFinite(res.bestScore) && Number.isFinite(res.dev)) {
                     bestM = res.bestMove;
-                    dev = res.dev || 0;
-                }
-            } catch(e) { /* 单 ply 失败则跳过（不阻塞整体） */ }
+                    dev = res.dev;
+                    status = 'success';
+                } else if (res && res.cancelled) { status = 'cancelled'; }
+                else if (res && res.timeout) { status = 'timeout'; }
+            } catch(e) { status = 'error'; }
             if (g._analysisRunning) {
-                g._analysisResults.push({ ply, san: g.sanHistory[ply], dev, grade: dev<=30?'good':dev<=100?'q':'bad', best: bestM?_msan(bestM):'', fromM: actual.from, toM: actual.to });
+                g._analysisResults.push({
+                    ply, san: g.sanHistory[ply], dev, status,
+                    grade: status === 'success' ? (dev<=30?'good':dev<=100?'q':'bad') : null,
+                    best: bestM ? _msan(bestM) : '', fromM: actual.from, toM: actual.to
+                });
                 g._analysisPly++;
                 // await 后已是异步续跑，无需 setTimeout 也能让出主线程；保留微任务兜底
                 g._analysisTimer = setTimeout(stepWorker, 0);
@@ -5169,7 +5510,8 @@ function startAnalysis(g) {
         const actual = hist[ply+1] ? hist[ply+1].lastMove : null;
         if (snap && actual) {
             const mover = snap.currentPlayer;
-            let bestSc = -Infinity, bestM = null;
+            const pd = depthFor(snap.board);   // v7.8.0（B11）：该手局面自己的深度
+            let bestSc = -Infinity, bestM = null, dev = 0, status = 'error';
             try {
                 const raw = ChessEngine.generateMoves(snap.board, mover, snap.castlingRights, snap.enPassantTarget);
                 for (const m of raw) {
@@ -5178,16 +5520,23 @@ function startAnalysis(g) {
                     const nc = ChessEngine.getCastlingRights(nb, snap.castlingRights);
                     const nep = ChessEngine.getEnPassantTarget(nb, m);
                     // v7.6.0：回退路径同样用独立 TT（每次 ply 新建，不污染实战共享表）
-                    const sc = -ChessEngine.analyzePosition(nb, -mover, nc, nep, DEPTH - 1, new Map());
+                    const sc = -ChessEngine.analyzePosition(nb, -mover, nc, nep, pd - 1, new Map());
                     if (sc > bestSc) { bestSc = sc; bestM = m; }
                 }
-            } catch(e){}
-            let dev = 0;
-            const nb = ChessEngine.makeMove(snap.board, actual);
-            { const nc = ChessEngine.getCastlingRights(nb, snap.castlingRights); const nep = ChessEngine.getEnPassantTarget(nb, actual);
-              const sc = -ChessEngine.analyzePosition(nb, -mover, nc, nep, DEPTH - 1, new Map());
-              dev = Math.abs(bestSc - sc); }
-            g._analysisResults.push({ ply, san: g.sanHistory[ply], dev, grade: dev<=30?'good':dev<=100?'q':'bad', best: bestM?_msan(bestM):'', fromM: actual.from, toM: actual.to });
+                if (bestM && Number.isFinite(bestSc)) {
+                    const nb = ChessEngine.makeMove(snap.board, actual);
+                    const nc = ChessEngine.getCastlingRights(nb, snap.castlingRights);
+                    const nep = ChessEngine.getEnPassantTarget(nb, actual);
+                    const sc = -ChessEngine.analyzePosition(nb, -mover, nc, nep, pd - 1, new Map());
+                    dev = Math.abs(bestSc - sc);
+                    status = Number.isFinite(dev) ? 'success' : 'error';
+                }
+            } catch(e) { status = 'error'; }   // v7.8.0（B01）：单步失败只标“未分析”，不中断整局复盘
+            g._analysisResults.push({
+                ply, san: g.sanHistory[ply], dev, status,
+                grade: status === 'success' ? (dev<=30?'good':dev<=100?'q':'bad') : null,
+                best: bestM ? _msan(bestM) : '', fromM: actual.from, toM: actual.to
+            });
         }
         g._analysisPly++;
         setTimeout(stepSync, 0);

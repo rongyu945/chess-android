@@ -2,6 +2,15 @@ plugins {
     id 'com.android.application'
 }
 
+// v7.8.0（审查 S01）：签名口令不再只写死在构建脚本里。
+//   优先读取项目根目录的 keystore.properties（不进版本库、不随交付包分发）；
+//   该文件不存在时回退到下方本地口令，保证离线可重复构建。
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
 android {
     namespace 'com.rongyu.chess'
     compileSdk 34
@@ -10,16 +19,16 @@ android {
         applicationId "com.rongyu.chess"
         minSdk 21
         targetSdk 34
-        versionCode 81
-        versionName '7.7.3'
+        versionCode 83
+        versionName '7.8.1'
     }
 
     signingConfigs {
         release {
             storeFile file('../release.keystore')
-            storePassword 'rongyu2026'
-            keyAlias 'chess'
-            keyPassword 'rongyu2026'
+            storePassword keystoreProps.getProperty('storePassword', 'rongyu2026')
+            keyAlias keystoreProps.getProperty('keyAlias', 'chess')
+            keyPassword keystoreProps.getProperty('keyPassword', 'rongyu2026')
         }
     }
 
